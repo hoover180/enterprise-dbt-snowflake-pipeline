@@ -1,0 +1,31 @@
+# Secrets — never commit
+.env
+*.pem
+*.key
+profiles.yml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# dbt
+dbt_packages/
+target/
+logs/
+.user.yml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+
+# Tableau
+*.twb
+!*.twbx
+
+# OS
+.DS_Store
