@@ -59,6 +59,36 @@ Orders contain one to four items, so their order identifier repeats across rows.
 
 Faker supplies dates, while seeded pseudo-random generation supplies customers, products, quantities, prices, tax, currencies, and item counts. The data is fictional and contains no production customer information. The default seed makes local regeneration reproducible for dbt development and tests.
 
+## Web clickstream source
+
+`data_gen/clickstream.py` creates a raw JSON extract for the web analytics source:
+
+- `data/CLICKSTREAM_EVENTS.json`
+
+The file is newline-delimited JSON: each line is one event object, matching the shape loaded into a Snowflake `VARIANT` column. Events are at event grain and include page views, cart additions, and search queries. Run the generator from the repository root with:
+
+```text
+python data_gen/clickstream.py
+```
+
+The default is 1,000 canonical events plus injected duplicates, with a repeatable seed. Use `--events`, `--seed`, or `--output-dir` to override those defaults.
+
+### Injected messiness
+
+#### Mid-year customer-key schema drift
+
+Events before the fixed 2025-07-01 cutoff use `user_id` for the customer identifier. Events on or after the cutoff use `customer_global_id` instead. The identifier values are drawn from the same synthetic customer population, but the key name changes and requires normalization in staging.
+
+#### Web-pixel retry duplicates
+
+Approximately 5% additional events are exact copies of other events, including their `event_id`. This simulates a browser pixel retrying after a delayed or missing acknowledgement and means raw event counts are not unique-event counts.
+
+#### Late-arriving events
+
+Approximately 2% of canonical events are deliberately late-arriving. Their `event_timestamp` is 2 to 4 days after their `event_date`, providing source records whose arrival lags the event date. These records support the Phase 3B backfill demonstration.
+
+The data is fictional and contains no production customer information. The default seed makes local regeneration reproducible for dbt development and tests.
+
 ## Deliberate non-messiness
 
 This Phase 1 extract does not inject nulls, duplicate line keys, invalid dates, or mismatched totals. Those defects would test data-quality handling rather than the specific regional-sharding, destructive-update, and order-item-grain behaviors required here.
