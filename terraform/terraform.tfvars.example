@@ -2,5 +2,5 @@
 # terraform.tfvars is gitignored — never commit real values.
 
 snowflake_account          = "YOOJGIC-KW80562"
-snowflake_user             = "hoover365"
+snowflake_user             = "HOOVER365"
 snowflake_private_key_path = "/path/to/rsa_key.p8"

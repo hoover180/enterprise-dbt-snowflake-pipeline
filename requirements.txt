@@ -1,1 +1,4 @@
 Faker>=37,<38
+snowflake-connector-python>=3.12,<5
+cryptography>=42
+python-dotenv>=1.0,<2

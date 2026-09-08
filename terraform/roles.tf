@@ -84,6 +84,15 @@ resource "snowflake_grant_privileges_to_account_role" "transformer_schema_create
   }
 }
 
+# The privilege grants above are moot unless var.snowflake_user can actually
+# assume TRANSFORMER_ROLE -- a role's privileges only apply to a session
+# that has USE ROLE'd into it. This is the role-to-user grant dbt's own
+# connection (see docs/dbt_profile_setup.md) depends on.
+resource "snowflake_grant_account_role" "transformer_to_user" {
+  role_name = snowflake_account_role.transformer.name
+  user_name = var.snowflake_user
+}
+
 # --- READ_ONLY_ANALYST ---
 
 resource "snowflake_grant_privileges_to_account_role" "analyst_database_usage" {
