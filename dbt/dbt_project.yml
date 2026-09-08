@@ -1,0 +1,33 @@
+name: "enterprise_dbt_snowflake_pipeline"
+version: "1.0.0"
+config-version: 2
+
+profile: "enterprise_dbt_snowflake"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+analysis-paths: ["analyses"]
+macro-paths: ["macros"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  enterprise_dbt_snowflake_pipeline:
+    staging:
+      +materialized: view
+    intermediate:
+      # Ephemeral: these models exist to reshape/union sources for the marts
+      # layer, are never queried directly (by BI tools or ad hoc analysts),
+      # and this project's schemas are already ephemeral per PR (see
+      # docs/workflow.md) — giving intermediate its own persisted object per
+      # PR schema would just be extra Snowflake objects with no consumer.
+      # Revisit if an intermediate model ever needs to be tested/debugged
+      # in isolation via `dbt show`, where a table materialization is easier
+      # to inspect.
+      +materialized: ephemeral
+    marts:
+      +materialized: table

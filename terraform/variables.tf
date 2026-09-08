@@ -5,9 +5,16 @@ variable "snowflake_account" {
 }
 
 variable "snowflake_user" {
-  description = "Snowflake username used for key-pair (JWT) authentication."
+  # Uppercase, not "hoover365": login authentication itself is
+  # case-insensitive, but this value is also consumed as a SQL identifier by
+  # resources like snowflake_grant_account_role.user_name, which the
+  # provider quotes verbatim (see its identifiers_rework_design_decisions.md
+  # guide) -- it must match Snowflake's actual stored identifier exactly,
+  # which is uppercase because the user was created unquoted. Confirmed via
+  # `SHOW GRANTS TO USER hoover365` returning grantee_name = HOOVER365.
+  description = "Snowflake username used for key-pair (JWT) authentication, in its canonical (uppercase) stored form."
   type        = string
-  default     = "hoover365"
+  default     = "HOOVER365"
 }
 
 variable "snowflake_private_key_path" {
