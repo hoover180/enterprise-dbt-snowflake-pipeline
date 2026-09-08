@@ -102,6 +102,50 @@ Approximately 2% of canonical events are deliberately late-arriving. Their `even
 
 The data is fictional and contains no production customer information. The default seed makes local regeneration reproducible for dbt development and tests.
 
+## CRM source
+
+`data_gen/crm.py` creates two related CSV extracts for the CRM source system:
+
+- `data/CRM_CUSTOMERS.csv` — one row per account.
+- `data/CRM_TICKETS.csv` — one row per support ticket.
+
+Run the generator from the repository root with:
+
+```text
+python data_gen/crm.py
+```
+
+The default is 350 accounts and 900 tickets, with a repeatable seed. Use `--accounts`, `--tickets`, `--seed`, or `--output-dir` to override those defaults.
+
+### Schema
+
+`CRM_CUSTOMERS.csv` columns:
+
+| Column           | Meaning                                    |
+| ----------------- | ------------------------------------------ |
+| `account_id`       | CRM's own internal account identifier      |
+| `contact_email`     | Email address, sourced from the shared identity pool |
+| `name`             | Account holder name, sourced from the shared identity pool |
+| `country`          | Account country, inconsistently formatted (see below) |
+| `created_date`      | Date the account was created in the CRM    |
+| `last_seen_date`     | Date of the account's most recent activity |
+
+`CRM_TICKETS.csv` columns: `ticket_id`, `account_id`, `category`, `created_date`, `status`.
+
+`account_id` is CRM's own independently assigned identifier — a sequential `ACCT-#####` counter with no digit relationship to the shared identity pool's customer index or to ERP's `CUST-#####`/`client_ref` values. This mirrors the ERP↔CRM design already described above: a real CRM mints its own primary keys, and the genuine join back to the identity pool (and therefore to ERP) is `contact_email`, resolved from `build_identity_pool(IDENTITY_POOL_SEED)` by a randomly chosen customer index, exactly as `erp.py` does. `contact_email` is written unmodified from the pool, so the join on email stays exact by design.
+
+### Injected messiness
+
+#### Dirty country formatting
+
+`country` is not standardized. Most rows carry a plain two-letter EU shipping code (`DE`, `FR`, `NL`, `ES`, `IT`), but the same logical country — the United States — is written inconsistently across rows, randomly chosen per row from `US`, `USA`, `United States`, and `u.s.a.`. Downstream staging cannot group or filter on `country` without first normalizing these variants to a single value.
+
+#### Ghost accounts
+
+Approximately 3-5% of the `account_id` values referenced in `CRM_TICKETS.csv` do not appear in `CRM_CUSTOMERS.csv` at all. These ghost account IDs are drawn from a number range immediately past the real account range, so they can never collide with a real account, and simulate accounts that were deleted from the CRM while their ticket history was retained. They are detectable with a simple anti-join of `CRM_TICKETS.csv.account_id` against `CRM_CUSTOMERS.csv.account_id`.
+
+The data is fictional and contains no production customer information. The default seed makes local regeneration reproducible for dbt development and tests.
+
 ## Deliberate non-messiness
 
 This Phase 1 extract does not inject nulls, duplicate line keys, invalid dates, or mismatched totals. Those defects would test data-quality handling rather than the specific regional-sharding, destructive-update, and order-item-grain behaviors required here.
