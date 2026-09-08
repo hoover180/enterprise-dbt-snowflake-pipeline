@@ -12,6 +12,8 @@ from typing import Any
 
 from faker import Faker
 
+from identity_pool import IDENTITY_POOL_SEED, build_identity_pool
+
 
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data"
 REGIONS = ("US", "EU")
@@ -19,6 +21,7 @@ REGIONS = ("US", "EU")
 US_COLUMNS = {
     "order_id": "order_id",
     "customer_id": "customer_id",
+    "customer_email": "customer_email",
     "order_date": "order_date",
     "status": "order_status",
     "product_id": "sku",
@@ -33,6 +36,7 @@ US_COLUMNS = {
 EU_COLUMNS = {
     "order_id": "order_no",
     "customer_id": "client_ref",
+    "customer_email": "contact_email",
     "order_date": "placed_on",
     "status": "fulfillment_state",
     "product_id": "product_code",
@@ -71,10 +75,18 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def build_order(order_number: int, region: str, fake: Faker, rng: random.Random) -> list[dict[str, Any]]:
+def build_order(
+    order_number: int,
+    region: str,
+    fake: Faker,
+    rng: random.Random,
+    email_by_index: dict[int, str],
+) -> list[dict[str, Any]]:
     """Create one order and its item rows at order-item grain."""
     order_id = f"{region}-{order_number:06d}"
-    customer_id = f"CUST-{rng.randint(1, 350):05d}"
+    customer_index = rng.randint(1, 350)
+    customer_id = f"CUST-{customer_index:05d}"
+    customer_email = email_by_index[customer_index]
     order_date = fake.date_between(start_date=date.today() - timedelta(days=365), end_date=date.today())
     currency = "USD" if region == "US" else rng.choice(("EUR", "GBP"))
     shipping_country = "US" if region == "US" else rng.choice(("DE", "FR", "NL", "ES", "IT"))
@@ -90,6 +102,7 @@ def build_order(order_number: int, region: str, fake: Faker, rng: random.Random)
             {
                 "order_id": order_id,
                 "customer_id": customer_id,
+                "customer_email": customer_email,
                 "order_date": order_date.isoformat(),
                 "status": "pending",
                 "product_id": f"SKU-{rng.randint(1, 250):05d}",
@@ -135,10 +148,12 @@ def generate_extracts(orders_per_region: int, seed: int, output_dir: Path) -> No
     fake = Faker()
     fake.seed_instance(seed)
 
+    email_by_index = {person["index"]: person["email"] for person in build_identity_pool(IDENTITY_POOL_SEED)}
+
     for region, column_map in (("US", US_COLUMNS), ("EU", EU_COLUMNS)):
         rows = []
         for order_number in range(1, orders_per_region + 1):
-            rows.extend(build_order(order_number, region, fake, rng))
+            rows.extend(build_order(order_number, region, fake, rng, email_by_index))
         apply_destructive_status_updates(rows, rng)
         write_csv(output_dir / f"{region}_ORDERS.csv", project_columns(rows, column_map))
 

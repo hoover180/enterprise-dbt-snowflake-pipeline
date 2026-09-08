@@ -34,8 +34,21 @@ Both shards contain the same underlying fields, but their source naming conventi
 | Currency            | `currency`        | `currency_code`     |
 | Tax amount          | `sales_tax`       | `vat_amount`        |
 | Shipping country    | `ship_to_country` | `ship_to_country`   |
+| Customer email      | `customer_email`  | `contact_email`     |
 
 The US shard uses USD and US shipping addresses. The EU shard uses EUR or GBP and a small set of EU shipping countries. Prices and tax amounts are decimal values serialized to two decimal places.
+
+## Shared identity pool
+
+`data_gen/identity_pool.py` exposes `build_identity_pool(seed)`, which generates the same 350 synthetic people (matching the `CUST-00001`..`CUST-00350` range already used across sources) every time it is called with `IDENTITY_POOL_SEED` (20260904). Every source script imports this pool and looks up a person's name/email by the same customer index it uses to build that source's own customer identifier.
+
+The pool is seeded independently of any script's own `--seed` argument, so changing `--seed` reshuffles only that source's own order/account-level randomness — every source still resolves `CUST-00042` to the same name and email regardless of what `--seed` it was run with.
+
+### Why ERP↔CRM join is deterministic while web is heuristic
+
+ERP's `customer_id`/`client_ref` and CRM's future `account_id` are independently assigned by each source system — there is intentionally no digit relationship between them, because a real ERP and a real CRM never share an internal ID scheme; each system mints its own primary keys for the same underlying person. Reconciling records by comparing those raw identifiers would be both unrealistic and unreliable.
+
+The genuine, deterministic join key between ERP and CRM is normalized email, sourced from this shared identity pool: both sources resolve the same customer index to the same email address, so a case-insensitive/whitespace-normalized match on email reliably links an ERP order to the right CRM account. For Phase 5: ERP and CRM each carry a real person-level identifier (an email address) that a real ERP and CRM plausibly both capture, so matching on it is a legitimate deterministic join rather than a coincidence of shared test data. Clickstream events, by contrast, only carry the `CUST-#####` index itself as `user_id`/`customer_global_id` — a convenience of this synthetic generator, not something a real web analytics pixel would know — so any resolution logic built against it should be treated as a heuristic stand-in for real-world web identity resolution (cookies, sessions, device fingerprints), not a second deterministic key.
 
 ## Injected messiness
 
