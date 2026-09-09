@@ -81,11 +81,20 @@ def build_order(
     fake: Faker,
     rng: random.Random,
     email_by_index: dict[int, str],
+    eu_client_ref_by_index: dict[int, str],
 ) -> list[dict[str, Any]]:
     """Create one order and its item rows at order-item grain."""
     order_id = f"{region}-{order_number:06d}"
     customer_index = rng.randint(1, 350)
-    customer_id = f"CUST-{customer_index:05d}"
+    if region == "EU":
+        # EU mints its own independent sequential ID, assigned in first-encounter
+        # order within this generation run -- no digit relationship to
+        # customer_index or to the US shard's customer_id.
+        customer_id = eu_client_ref_by_index.setdefault(
+            customer_index, f"EU-CLI-{len(eu_client_ref_by_index) + 1:06d}"
+        )
+    else:
+        customer_id = f"CUST-{customer_index:05d}"
     customer_email = email_by_index[customer_index]
     order_date = fake.date_between(start_date=date.today() - timedelta(days=365), end_date=date.today())
     currency = "USD" if region == "US" else rng.choice(("EUR", "GBP"))
@@ -149,11 +158,12 @@ def generate_extracts(orders_per_region: int, seed: int, output_dir: Path) -> No
     fake.seed_instance(seed)
 
     email_by_index = {person["index"]: person["email"] for person in build_identity_pool(IDENTITY_POOL_SEED)}
+    eu_client_ref_by_index: dict[int, str] = {}
 
     for region, column_map in (("US", US_COLUMNS), ("EU", EU_COLUMNS)):
         rows = []
         for order_number in range(1, orders_per_region + 1):
-            rows.extend(build_order(order_number, region, fake, rng, email_by_index))
+            rows.extend(build_order(order_number, region, fake, rng, email_by_index, eu_client_ref_by_index))
         apply_destructive_status_updates(rows, rng)
         write_csv(output_dir / f"{region}_ORDERS.csv", project_columns(rows, column_map))
 
