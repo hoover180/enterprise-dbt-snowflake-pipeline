@@ -93,6 +93,30 @@ resource "snowflake_grant_account_role" "transformer_to_user" {
   user_name = var.snowflake_user
 }
 
+# USAGE on GOVERNANCE.SECURITY makes the PII tag and EMAIL_MASK policy
+# visible/referenceable to TRANSFORMER_ROLE, but is NOT sufficient to attach
+# either to a column -- that requires the separate APPLY TAG / APPLY MASKING
+# POLICY privileges, deliberately deferred to Phase 6 when there's a real
+# column to attach to (see docs/data_modeling_decisions.md ADR-001).
+# READ_ONLY_ANALYST needs no grant here: masking is evaluated at query time
+# against the mart table, not by reading the policy object itself.
+resource "snowflake_grant_privileges_to_account_role" "transformer_governance_database_usage" {
+  account_role_name = snowflake_account_role.transformer.name
+  privileges        = ["USAGE"]
+  on_account_object {
+    object_type = "DATABASE"
+    object_name = snowflake_database.governance.name
+  }
+}
+
+resource "snowflake_grant_privileges_to_account_role" "transformer_governance_schema_usage" {
+  account_role_name = snowflake_account_role.transformer.name
+  privileges        = ["USAGE"]
+  on_schema {
+    schema_name = "\"${snowflake_database.governance.name}\".\"${snowflake_schema.governance_security.name}\""
+  }
+}
+
 # --- READ_ONLY_ANALYST ---
 
 resource "snowflake_grant_privileges_to_account_role" "analyst_database_usage" {
