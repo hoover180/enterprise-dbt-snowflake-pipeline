@@ -8,7 +8,7 @@
 
 ## Checklist
 
-- [ ] Slim CI passing (lint, parse, build, tests, contracts)
+- [ ] CI passing (lint, parse — Slim CI's build/tests/contracts stage is Phase 8, not live yet)
 - [ ] No secrets, credentials, or `.env` values in the diff
 - [ ] New models have tests (schema and/or singular) — not just a passing build
 - [ ] If this touches a gold model: contract still enforced, no silent schema change
