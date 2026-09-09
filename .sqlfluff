@@ -1,0 +1,6 @@
+[sqlfluff]
+templater = jinja
+dialect = snowflake
+
+[sqlfluff:templater:jinja]
+apply_dbt_builtins = True
