@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-parse:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14.0"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint SQL with sqlfluff
+        run: sqlfluff lint dbt/models
+
+      - name: Generate placeholder dbt profile
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml <<'EOF'
+          enterprise_dbt_snowflake:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: placeholder_account
+                user: placeholder_user
+                password: placeholder_password
+                role: placeholder_role
+                database: placeholder_database
+                warehouse: placeholder_warehouse
+                schema: placeholder_schema
+                threads: 1
+          EOF
+
+      - name: dbt parse
+        run: dbt parse --project-dir dbt --profiles-dir ~/.dbt
