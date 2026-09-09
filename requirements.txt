@@ -2,3 +2,5 @@ Faker>=37,<38
 snowflake-connector-python>=3.12,<5
 cryptography>=42
 python-dotenv>=1.0,<2
+dbt-core==1.12.4
+dbt-snowflake==1.12.0

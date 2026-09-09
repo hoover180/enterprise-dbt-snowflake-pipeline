@@ -78,7 +78,7 @@ def build_event(fake: Faker, rng: random.Random, late: bool) -> dict[str, Any]:
         "session_id": f"SESSION-{rng.randint(1, 500):06d}",
         "event_type": event_type,
     }
-    event["user_id" if timestamp.date() < SCHEMA_CUTOFF else "customer_global_id"] = user_id
+    event["user_id" if event_date < SCHEMA_CUTOFF else "customer_global_id"] = user_id
 
     if event_type == "page_view":
         event["page_url"] = f"https://www.globalretail.example{rng.choice(PAGE_PATHS)}"
