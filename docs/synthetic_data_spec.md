@@ -24,7 +24,7 @@ Both shards contain the same underlying fields, but their source naming conventi
 | Meaning             | US_ORDERS         | EU_ORDERS           |
 | ------------------- | ----------------- | ------------------- |
 | Order identifier    | `order_id`        | `order_no`          |
-| Customer identifier | `customer_id`     | `client_ref`        |
+| Customer identifier | `customer_id` (`CUST-#####`) | `client_ref` (`EU-CLI-######`, independently assigned -- see below) |
 | Order date          | `order_date`      | `placed_on`         |
 | Current status      | `order_status`    | `fulfillment_state` |
 | Product identifier  | `sku`             | `product_code`      |
@@ -40,15 +40,17 @@ The US shard uses USD and US shipping addresses. The EU shard uses EUR or GBP an
 
 ## Shared identity pool
 
-`data_gen/identity_pool.py` exposes `build_identity_pool(seed)`, which generates the same 350 synthetic people (matching the `CUST-00001`..`CUST-00350` range already used across sources) every time it is called with `IDENTITY_POOL_SEED` (20260904). Every source script imports this pool and looks up a person's name/email by the same customer index it uses to build that source's own customer identifier.
+`data_gen/identity_pool.py` exposes `build_identity_pool(seed)`, which generates the same 350 synthetic people (indexed `1`..`350`, matching the `CUST-00001`..`CUST-00350` range used by the US shard and clickstream) every time it is called with `IDENTITY_POOL_SEED` (20260904). Every source script imports this pool and looks up a person's name/email by the customer index it uses internally to represent that person -- but each source is still free to mint its own external-facing identifier from that index rather than reusing `CUST-#####` verbatim. The US ERP shard and clickstream do reuse the `CUST-#####` form directly; the EU ERP shard and CRM do not (see below).
 
-The pool is seeded independently of any script's own `--seed` argument, so changing `--seed` reshuffles only that source's own order/account-level randomness — every source still resolves `CUST-00042` to the same name and email regardless of what `--seed` it was run with.
+The pool is seeded independently of any script's own `--seed` argument, so changing `--seed` reshuffles only that source's own order/account-level randomness — every source still resolves customer index `42` to the same name and email regardless of what `--seed` it was run with.
 
 ### Why ERP↔CRM join is deterministic while web is heuristic
 
-ERP's `customer_id`/`client_ref` and CRM's future `account_id` are independently assigned by each source system — there is intentionally no digit relationship between them, because a real ERP and a real CRM never share an internal ID scheme; each system mints its own primary keys for the same underlying person. Reconciling records by comparing those raw identifiers would be both unrealistic and unreliable.
+ERP's `customer_id` (US) and `client_ref` (EU), and CRM's `account_id`, are independently assigned by each source system — there is intentionally no digit relationship between any of them, because a real ERP and a real CRM (or two regional shards of the same ERP) never share an internal ID scheme; each system mints its own primary keys for the same underlying person. Reconciling records by comparing those raw identifiers would be both unrealistic and unreliable.
 
-The genuine, deterministic join key between ERP and CRM is normalized email, sourced from this shared identity pool: both sources resolve the same customer index to the same email address, so a case-insensitive/whitespace-normalized match on email reliably links an ERP order to the right CRM account. For Phase 5: ERP and CRM each carry a real person-level identifier (an email address) that a real ERP and CRM plausibly both capture, so matching on it is a legitimate deterministic join rather than a coincidence of shared test data. Clickstream events, by contrast, only carry the `CUST-#####` index itself as `user_id`/`customer_global_id` — a convenience of this synthetic generator, not something a real web analytics pixel would know — so any resolution logic built against it should be treated as a heuristic stand-in for real-world web identity resolution (cookies, sessions, device fingerprints), not a second deterministic key.
+The EU shard's `client_ref` is a sequential `EU-CLI-######` counter, assigned the first time a given customer index is encountered while generating the EU order stream and reused for that same customer index for the rest of that run (see `data_gen/erp.py`'s `eu_client_ref_by_index` mapping). This makes `client_ref` stable *within one deterministic generation run*, exactly like every other identifier in this project -- it is not a claim that these values would persist across independent, non-deterministic real-world extracts the way a genuine EU ERP's customer master key might.
+
+The genuine, deterministic join key between US and EU (and between ERP and CRM) is normalized email, sourced from this shared identity pool: every source resolves the same customer index to the same email address, so a case-insensitive/whitespace-normalized match on email reliably links records across shards and systems. For Phase 5: ERP (both shards) and CRM each carry a real person-level identifier (an email address) that a real ERP and CRM plausibly both capture, so matching on it is a legitimate deterministic join rather than a coincidence of shared test data -- the same mechanism links US to EU as links ERP to CRM. Clickstream events, by contrast, only carry the `CUST-#####` index itself as `user_id`/`customer_global_id` — a convenience of this synthetic generator, not something a real web analytics pixel would know — so any resolution logic built against it should be treated as a heuristic stand-in for real-world web identity resolution (cookies, sessions, device fingerprints), not a second deterministic key.
 
 ## Injected messiness
 
