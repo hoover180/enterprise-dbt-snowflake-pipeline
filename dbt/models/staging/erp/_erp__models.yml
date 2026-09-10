@@ -1,0 +1,65 @@
+version: 2
+
+models:
+  - name: stg_erp__order_items
+    description: >
+      Canonical, order-item-grain view of the US and EU ERP shards, unioned
+      and standardized via the erp_order_items_unioned() macro. Monetary
+      fields are converted to USD using the synthetic erp_eur_to_usd_rate
+      var (see dbt_project.yml and ADR-002 in
+      docs/data_modeling_decisions.md) -- not a production FX rate. Rows
+      that fail basic row-level validation are excluded here and routed to
+      stg_erp__order_items_quarantine instead. order_id alone is
+      intentionally non-unique at this grain; the business key is
+      (region, source_order_id, source_line_item_id), exposed as
+      order_item_key.
+    columns:
+      - name: order_item_key
+        description: Composite business key (region-source_order_id-source_line_item_id) at order-item grain.
+        data_tests:
+          - unique
+          - not_null
+      - name: region
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["US", "EU"]
+      - name: source_order_id
+        description: Native order identifier (order_id for US, order_no for EU). Intentionally non-unique alone -- repeats once per item on the order.
+        data_tests:
+          - not_null
+      - name: source_line_item_id
+        data_tests:
+          - not_null
+      - name: customer_id
+        description: Native customer identifier, preserved as-is (CUST-##### for US, EU-CLI-###### for EU). No cross-shard identity resolution at this layer.
+        data_tests:
+          - not_null
+      - name: order_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["shipped", "delivered"]
+      - name: unit_price_usd
+        description: unit_price_original converted to USD via erp_convert_to_usd(). Never null for rows that pass validation.
+        data_tests:
+          - not_null
+      - name: tax_amount_usd
+        data_tests:
+          - not_null
+
+  - name: stg_erp__order_items_quarantine
+    description: >
+      Rows from the US/EU ERP union that failed basic row-level validation
+      (missing business key, missing required field, or a currency with no
+      defined USD conversion rate -- see erp_quarantine_reason() macro).
+      Minimal by design: no retry counts, replay orchestration, or
+      resolved-status tracking (Phase 6).
+    columns:
+      - name: quarantine_reason
+        data_tests:
+          - not_null
+      - name: quarantined_at
+        data_tests:
+          - not_null

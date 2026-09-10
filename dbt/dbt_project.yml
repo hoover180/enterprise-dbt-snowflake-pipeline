@@ -15,6 +15,16 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
+vars:
+  # Synthetic FX assumptions used by ERP staging (Issue #16) to convert
+  # EUR/GBP-denominated amounts to USD before the US/EU shard union. These
+  # are fixed illustrative rates for this portfolio project only -- they
+  # are NOT production FX rates, are not sourced from any FX provider or
+  # rate table, and do not vary by date (see
+  # docs/data_modeling_decisions.md ADR-002).
+  erp_eur_to_usd_rate: 1.10
+  erp_gbp_to_usd_rate: 1.27
+
 models:
   enterprise_dbt_snowflake_pipeline:
     staging:
