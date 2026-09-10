@@ -51,13 +51,19 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def event_timestamp(event_date: date, rng: random.Random, late: bool) -> datetime:
-    """Create an event timestamp, optionally simulating late arrival."""
-    timestamp_date = event_date + timedelta(days=rng.randint(2, 4)) if late else event_date
+def build_event_timestamp(event_date: date, rng: random.Random) -> datetime:
+    """Create the true occurrence timestamp for an event (never shifted for late arrival)."""
     return datetime.combine(
-        timestamp_date,
+        event_date,
         time(hour=rng.randrange(24), minute=rng.randrange(60), second=rng.randrange(60)),
     )
+
+
+def build_ingested_at(event_timestamp: datetime, rng: random.Random, late: bool) -> datetime:
+    """Create the ingestion timestamp, simulating pipeline arrival lag for late events."""
+    if late:
+        return event_timestamp + timedelta(days=rng.randint(2, 4))
+    return event_timestamp + timedelta(seconds=rng.randint(1, 120))
 
 
 def build_event(fake: Faker, rng: random.Random, late: bool) -> dict[str, Any]:
@@ -68,13 +74,15 @@ def build_event(fake: Faker, rng: random.Random, late: bool) -> dict[str, Any]:
         weights=(70, 15, 15),
         k=1,
     )[0]
-    timestamp = event_timestamp(event_date, rng, late)
+    timestamp = build_event_timestamp(event_date, rng)
+    ingested_at = build_ingested_at(timestamp, rng, late)
     user_id = f"CUST-{rng.randint(1, 350):05d}"
 
     event: dict[str, Any] = {
         "event_id": fake.uuid4(),
         "event_timestamp": f"{timestamp.isoformat()}Z",
         "event_date": event_date.isoformat(),
+        "ingested_at": f"{ingested_at.isoformat()}Z",
         "session_id": f"SESSION-{rng.randint(1, 500):06d}",
         "event_type": event_type,
     }
