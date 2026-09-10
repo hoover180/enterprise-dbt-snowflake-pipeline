@@ -1,0 +1,79 @@
+version: 2
+
+models:
+  - name: stg_web__events
+    description: >
+      Canonical, event-grain view of the web clickstream source, parsed
+      from RAW_WEB_EVENTS's single VARIANT column via web_events_parsed()
+      (see ADR-004 in docs/data_modeling_decisions.md). user_id and
+      customer_global_id (a mid-year schema drift, cutoff 2025-07-01) are
+      coalesced into a single customer_id column. Web-pixel retry
+      duplicates (~5% of raw rows -- exact copies, including event_id) are
+      removed via QUALIFY ROW_NUMBER() partitioned on event_id. Rows that
+      fail basic row-level validation are excluded here and routed to
+      stg_web__events_quarantine instead.
+    columns:
+      - name: event_id
+        description: Business key at event grain. Unique after web-pixel retry dedup.
+        data_tests:
+          - unique
+          - not_null
+      - name: event_timestamp
+        description: True, unshifted occurrence time of the event (never displaced for late arrival).
+        data_tests:
+          - not_null
+      - name: event_date
+        description: Calendar date of event_timestamp. Also the schema-drift cutoff boundary (< 2025-07-01 vs >=).
+        data_tests:
+          - not_null
+      - name: ingested_at
+        description: >
+          Pipeline ingestion time. At or shortly after event_timestamp for
+          most events; 2-4 days after for the ~2% of canonical events
+          that are deliberately late-arriving (Phase 3B backfill
+          demonstration -- not consumed by this model).
+        data_tests:
+          - not_null
+      - name: session_id
+        data_tests:
+          - not_null
+      - name: event_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["page_view", "cart_addition", "search_query"]
+      - name: customer_id
+        description: >
+          Coalesced from the source's user_id (events before 2025-07-01)
+          or customer_global_id (events on/after). Same synthetic
+          CUST-##### population on both sides of the cutoff (see ADR-004).
+        data_tests:
+          - not_null
+      - name: page_url
+        description: Populated for event_type = page_view; null otherwise. Not tested -- nullability is event-type-conditional, not a data-quality signal.
+      - name: product_id
+        description: Populated for event_type = cart_addition; null otherwise.
+      - name: quantity
+        description: Populated for event_type = cart_addition; null otherwise.
+      - name: search_query
+        description: Populated for event_type = search_query; null otherwise.
+
+  - name: stg_web__events_quarantine
+    description: >
+      Rows from RAW_WEB_EVENTS that failed basic row-level validation
+      (missing event_id, missing/unparseable timestamp or date field,
+      missing session_id/event_type/customer_id -- see
+      web_quarantine_reason() macro). Minimal by design, matching
+      stg_erp__order_items_quarantine's pattern: no retry counts, replay
+      orchestration, or resolved-status tracking (Phase 6). Currently
+      empty against the synthetic dataset -- see ADR-004.
+    columns:
+      - name: raw_event_data
+        description: The unparsed VARIANT payload, kept as-is for debugging a VARIANT parsing failure that the parsed columns below would otherwise obscure.
+      - name: quarantine_reason
+        data_tests:
+          - not_null
+      - name: quarantined_at
+        data_tests:
+          - not_null
