@@ -93,3 +93,67 @@ This is deliberately minimal: no retry counts, no replay orchestration, no resol
 - `stg_erp__order_items` holds 2,527 rows (1,254 US + 1,273 EU — all of both shards, USD and EUR and GBP alike); `stg_erp__order_items_quarantine` is empty (0 rows) against the current synthetic dataset. No validation-failure reason is currently exercised, since the source data has no nulls/invalid amounts (`docs/synthetic_data_spec.md`, "Deliberate non-messiness") and both currencies now convert. An empty quarantine table here is the correct signal that the validation logic works and this PR's currency scope now matches what's actually in the raw data — not evidence the checks are unreachable dead code.
 - Any downstream model reading `stg_erp__order_items` for revenue/analytics gets a consistent USD figure across both regions and all three source currencies. Anyone adding a fourth ERP shard, or a currency neither rate covers, should extend `erp_convert_to_usd()` with another `var`-backed rate the same way, not special-case it inline.
 - `sqlfluff`'s jinja templater does not know project-defined dbt macros by default; `.sqlfluff` now sets `load_macros_from_path = dbt/macros` so `sqlfluff lint` can render `erp_order_items_unioned()`/`erp_quarantine_reason()`/`erp_convert_to_usd()` instead of failing to template them. This is the first PR with real staging `.sql` files, so it's the first time this gap in the Slim CI harness (from PR #22) was exercised.
+
+## ADR-003: dbt Snapshots (SCD2) over ERP's destructive order-status updates
+
+**Status:** Accepted (2026-09-10).
+**Phase:** Phase 3 (this PR — Issue #17). Builds on `stg_erp__order_items` (Issue #16, ADR-002) but is intentionally a separate model and a separate PR.
+
+### Context
+
+`docs/synthetic_data_spec.md` ("Destructive status updates") is explicit: the ERP source overwrites `order_status`/`fulfillment_state` in place, retains no history, and carries no update timestamp. Downstream models therefore cannot reconstruct *when* an order changed state from the raw data alone — the only way to recover that history is to start capturing it going forward, which is exactly what a dbt snapshot does: it diffs each run against the previous snapshotted state and writes a new row only when something relevant changed.
+
+### Contrast with Project 2's one-time `ALTER TABLE`
+
+A previous portfolio project (Project 2) handled a schema change with a one-time `ALTER TABLE` migration. That pattern fits a source that changed shape *once*, at a known point, where the fix is a single forward-only DDL statement. It does not fit here: this ERP source has no change history at all, by design, on every run — there is no single point-in-time migration to write, because the destructive overwrite is the source's permanent, ongoing behavior. A dbt snapshot is the correct tool specifically because it runs repeatedly and accumulates history incrementally each time it's invoked, rather than making one fixed correction and being done.
+
+### Decision: separate order-grain staging model (`stg_erp__orders`)
+
+`stg_erp__order_items` (ADR-002) is order-item grain by design — an order with N line items produces N rows, which is required for Issue #16's item-level revenue/tax fields. Snapshotting that model directly would be wrong for two independent reasons:
+
+1. `check_cols: ['order_status']` would need to evaluate identically across every line-item row of the same order for the snapshot to behave sanely at order-item grain, turning a status-history feature into an implicit, undocumented dependency on line-item-level invariants.
+2. Snapshotting at item grain would snapshot every item's currency/quantity/price fields too unless carefully excluded, none of which are part of the status-history question this issue is about.
+
+A new order-grain model, `stg_erp__orders`, was built instead — one row per `(region, order_id)`, exposing exactly `region`, `order_id`, `customer_id`, `order_status`, `order_date`. It reuses `stg_erp__order_items`'/`erp_order_items_unioned()`'s config-driven per-shard mapping pattern (a new `erp_orders_unioned()` macro, same shape, order-level columns only) rather than referencing `stg_erp__order_items` directly, so that order-level status history has no dependency on item-level quarantine routing — an order's status is a fact about the order regardless of whether one of its line items happens to fail item-level validation.
+
+Collapsing item-grain rows to order grain via `select distinct` is non-lossy here: verified directly against `DEV_ANALYTICS.RAW.US_ORDERS`/`EU_ORDERS` that `order_status`/`fulfillment_state` and `customer_id`/`client_ref` are identical across every line item of the same order (0 inconsistent orders in either shard, out of 500 orders/region) — not assumed from `data_gen/erp.py`'s "all item rows for an order share the order's current status" note, though that note does explain *why* it holds.
+
+### Decision: `check` strategy, not `timestamp`
+
+dbt's `timestamp` strategy requires a genuine `updated_at`-style column on the source. Neither ERP shard has one — `docs/synthetic_data_spec.md` is explicit that there is no update timestamp at all, only the final overwritten value. `check` is therefore the only strategy that applies, comparing the configured `check_cols` against the previous snapshotted state on every run instead of comparing timestamps.
+
+`check_cols: ['order_status']` only — deliberately not `check_cols: 'all'` and not including `order_date`/`customer_id`. This snapshot answers one question (when did this order's status change, and to what) and is scoped to that; it is not a general-purpose change-tracker for every order field. A future need to track e.g. customer reassignment would be a new, separately-scoped snapshot or an explicit extension of `check_cols`, not an incidental side effect of this one.
+
+### Decision: composite `unique_key` via native list syntax, YAML `config:` block
+
+Checked against the current dbt-core 1.12 documentation directly (this project has been burned before by assuming stale patterns — the sqlfluff/dbt-templater gap and GitHub Actions version drift are both called out elsewhere in this repo) rather than defaulting to a familiar-but-outdated pattern:
+
+- Snapshot definitions are written in a YAML `config:` block (`dbt/snapshots/erp_orders_status_snapshot.yml`, top-level `snapshots:` key, `relation: ref(...)`), the syntax dbt-core has recommended since 1.9 — not the legacy `{% snapshot %}` Jinja SQL block.
+- Composite `unique_key` is expressed as a native YAML list, `unique_key: [region, order_id]` — dbt-core 1.9 added first-class support for this (dbt-labs/dbt-core#9992); string concatenation (`region || '-' || order_id`) was the pre-1.9 workaround and is no longer the recommended approach. `stg_erp__orders.order_key` (the same `region-order_id` concatenation, matching `stg_erp__order_items.order_item_key`'s established convention) still exists as a convenience column for `not_null`/`unique` testing on the staging model itself, but the snapshot's own `unique_key` config uses the list form directly against `region`/`order_id`, not that derived column.
+
+The snapshot lands in the `RAW` schema, same as every other model in this project currently — `docs/dbt_profile_setup.md` already documents that per-layer schema separation via a `generate_schema_name` macro is deliberately deferred future work, not solved by this PR; giving the snapshot a one-off custom schema would be inconsistent with every other model's current behavior for no benefit.
+
+### Manual-update demonstration methodology
+
+`data_gen/erp.py` has no mechanism for producing a second, differing state on a subsequent run — `apply_destructive_status_updates()` is a single deterministic pass per seed (`pending`→`shipped`→82% chance of `delivered`), with no day-N flag or seed variant (confirmed by reading the script, not assumed). `data_gen/load_raw.py` also always does `CREATE OR REPLACE TABLE`, so simply re-running the generator and reloader can never produce a differing second load. The only way to demonstrate a genuine second state is a manual, one-time `UPDATE` run directly against `DEV_ANALYTICS.RAW.US_ORDERS`/`EU_ORDERS` — explicitly a stand-in for what a real ERP's own destructive update would do, not a repeatable part of the pipeline. This is a demonstration step only; it is not part of `dbt build`, CI, or any script in this repo.
+
+Before running it, `TRANSFORMER_ROLE`'s privileges were checked: `terraform/roles.tf` grants no explicit `UPDATE` (only `CREATE TABLE`/`CREATE VIEW`/`CREATE STAGE` and `USAGE`). But `data_gen/load_raw.py` connects as `TRANSFORMER_ROLE` by default and creates `US_ORDERS`/`EU_ORDERS` itself via `CREATE OR REPLACE TABLE`, so `TRANSFORMER_ROLE` owns those tables — ownership implies full DML. This was confirmed empirically (not just inferred) with a no-op `UPDATE ... SET order_status = order_status WHERE 1=0` before touching real rows, which succeeded with 0 rows affected and no permission error.
+
+Five `shipped` orders per shard were selected by querying current status directly (not assumed) — `shipped`→`delivered` was used because it is the only transition present in the synthetic data (confirmed: every order in `DEV_ANALYTICS.RAW` is currently either `shipped` or `delivered`, 90/410 split per shard, matching the generator's 82% delivery rate). Original status was recorded before any change:
+
+| Order | Region | Status before | Status after |
+| ----- | ------ | -------------- | -------------- |
+| US-000004, US-000006, US-000012, US-000013, US-000019 | US | shipped | delivered |
+| EU-000002, EU-000005, EU-000007, EU-000028, EU-000053 | EU | shipped | delivered |
+
+After the manual `UPDATE` (11 line-item rows affected per shard, matching those 5 orders' 1-4 items each) and rerunning `stg_erp__orders` then `dbt snapshot`, `erp_orders_status_snapshot` was queried directly:
+
+- All 10 changed orders now have exactly 2 rows: one closed (`order_status = 'shipped'`, `dbt_valid_to` = the second run's timestamp) and one open (`order_status = 'delivered'`, `dbt_valid_from` = the same timestamp) — the closed row's `dbt_valid_to` matches its successor's `dbt_valid_from` exactly for all 10 (0 mismatches, checked directly).
+- All 990 untouched orders still have exactly 1 open row — no spurious history anywhere.
+- Total snapshot row count: 1010 (1000 baseline + 10 new versions), matching 1000 orders × (1 + 10 having a second version).
+
+### Consequences
+
+- `erp_orders_status_snapshot` is the only place in this project with real order-status history; every other model still sees only the current (post-overwrite) status, exactly as the source provides.
+- The singular test `assert_erp_orders_status_snapshot_single_open_version` (`dbt/tests/`) encodes the invariant that actually matters for SCD2 correctness — never more than one currently-open row per order — rather than relying solely on schema tests, which can't express a cross-row condition like this.
+- Extending this to CRM or clickstream status-like fields in the future should follow the same shape: a narrow, grain-appropriate staging model feeding a `check`-strategy snapshot scoped to the specific column(s) that need history, not a blanket snapshot of an entire wide model.
