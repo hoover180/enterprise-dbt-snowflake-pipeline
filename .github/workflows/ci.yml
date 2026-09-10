@@ -20,7 +20,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Lint SQL with sqlfluff
-        run: sqlfluff lint dbt/models
+        run: sqlfluff lint dbt/models dbt/macros dbt/snapshots dbt/tests
 
       - name: Generate placeholder dbt profile
         run: |
