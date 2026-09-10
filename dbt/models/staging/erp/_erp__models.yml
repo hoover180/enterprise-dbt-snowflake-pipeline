@@ -49,6 +49,52 @@ models:
         data_tests:
           - not_null
 
+  - name: stg_erp__orders
+    description: >
+      Canonical, order-grain view of the US and EU ERP shards, built via
+      erp_orders_unioned() (order-grain counterpart to
+      erp_order_items_unioned()). One row per (region, order_id) --
+      order_status and customer_id are confirmed identical across every
+      line item of a given order (see ADR-002 in
+      docs/data_modeling_decisions.md), so no line-item information is lost
+      by collapsing to this grain. Separate from stg_erp__order_items
+      (order-item grain, Issue #16) -- this model exists to support Issue
+      #17's SCD2 snapshot of order_status. No currency conversion or
+      quarantine routing at this grain: monetary fields don't exist here,
+      and every row that appears in the raw shards has a valid order_id/
+      customer_id/order_status by construction (see docs/synthetic_data_spec.md,
+      "Deliberate non-messiness").
+    columns:
+      - name: order_key
+        description: Composite business key (region-order_id) at order grain.
+        data_tests:
+          - unique
+          - not_null
+      - name: region
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["US", "EU"]
+      - name: order_id
+        description: Native order identifier (order_id for US, order_no for EU).
+        data_tests:
+          - not_null
+      - name: customer_id
+        description: Native customer identifier, preserved as-is (CUST-##### for US, EU-CLI-###### for EU).
+        data_tests:
+          - not_null
+      - name: order_status
+        description: Canonicalized column name across the two shards' different naming (order_status / fulfillment_state).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["shipped", "delivered"]
+      - name: order_date
+        data_tests:
+          - not_null
+
   - name: stg_erp__order_items_quarantine
     description: >
       Rows from the US/EU ERP union that failed basic row-level validation

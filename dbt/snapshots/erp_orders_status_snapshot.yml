@@ -1,0 +1,29 @@
+snapshots:
+  - name: erp_orders_status_snapshot
+    relation: ref('stg_erp__orders')
+    description: >
+      SCD2 history of ERP order_status, captured via dbt snapshot (Issue
+      #17) against stg_erp__orders. check strategy is used because the ERP
+      source (docs/synthetic_data_spec.md, "Destructive status updates")
+      has no updated_at/change-tracking column at all -- the timestamp
+      strategy isn't available. Scoped to order_status only (check_cols)
+      deliberately -- this is a status-history snapshot, not a
+      general-purpose change-tracker for every order field. Contrast with
+      Project 2's one-time ALTER TABLE approach (see ADR-003 in
+      docs/data_modeling_decisions.md): Project 2's source had a one-time
+      schema change to capture; this ERP source has no change history at
+      all, which is what a snapshot is for.
+    config:
+      unique_key: [region, order_id]
+      strategy: check
+      check_cols: ['order_status']
+    columns:
+      - name: dbt_scd_id
+        description: dbt-generated per-version surrogate key -- the true unique key of this snapshot table (order_key alone is not unique across history by design).
+        data_tests:
+          - unique
+          - not_null
+      - name: order_key
+        description: Composite business key (region-order_id), matching stg_erp__orders. Not unique here -- an order with status history has multiple rows.
+        data_tests:
+          - not_null
