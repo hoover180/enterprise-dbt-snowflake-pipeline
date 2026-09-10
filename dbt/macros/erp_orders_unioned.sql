@@ -33,6 +33,7 @@
     },
 ] -%}
 
+-- noqa: disable=LT02
 {% for shard in shards %}
 select distinct
     '{{ shard.region }}' as region,
@@ -45,5 +46,6 @@ from {{ shard.relation }}
 union all
 {% endif %}
 {% endfor %}
+-- noqa: enable=LT02
 
 {% endmacro %}
