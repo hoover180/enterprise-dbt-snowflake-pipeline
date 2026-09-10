@@ -69,7 +69,7 @@ resource "snowflake_grant_privileges_to_account_role" "transformer_database_usag
 resource "snowflake_grant_privileges_to_account_role" "transformer_schema_create_existing" {
   for_each          = local.transformer_databases
   account_role_name = snowflake_account_role.transformer.name
-  privileges        = ["CREATE TABLE", "CREATE VIEW"]
+  privileges        = ["CREATE TABLE", "CREATE VIEW", "CREATE STAGE"]
   on_schema {
     all_schemas_in_database = each.value
   }
@@ -78,7 +78,7 @@ resource "snowflake_grant_privileges_to_account_role" "transformer_schema_create
 resource "snowflake_grant_privileges_to_account_role" "transformer_schema_create_future" {
   for_each          = local.transformer_databases
   account_role_name = snowflake_account_role.transformer.name
-  privileges        = ["CREATE TABLE", "CREATE VIEW"]
+  privileges        = ["CREATE TABLE", "CREATE VIEW", "CREATE STAGE"]
   on_schema {
     future_schemas_in_database = each.value
   }
