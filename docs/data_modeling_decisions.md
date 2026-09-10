@@ -157,3 +157,62 @@ After the manual `UPDATE` (11 line-item rows affected per shard, matching those 
 - `erp_orders_status_snapshot` is the only place in this project with real order-status history; every other model still sees only the current (post-overwrite) status, exactly as the source provides.
 - The singular test `assert_erp_orders_status_snapshot_single_open_version` (`dbt/tests/`) encodes the invariant that actually matters for SCD2 correctness — never more than one currently-open row per order — rather than relying solely on schema tests, which can't express a cross-row condition like this.
 - Extending this to CRM or clickstream status-like fields in the future should follow the same shape: a narrow, grain-appropriate staging model feeding a `check`-strategy snapshot scoped to the specific column(s) that need history, not a blanket snapshot of an entire wide model.
+
+## ADR-004: Web clickstream staging — VARIANT parsing, customer-key coalesce, pixel-retry dedup
+
+**Status:** Accepted (2026-09-10).
+**Phase:** Phase 3B (this PR — clickstream staging). The incremental model, 3-day look-back window, and backfill/replay demonstration described in `docs/synthetic_data_spec.md`'s late-arriving-events section are explicitly out of scope here and land in a separate, later PR.
+
+### Context
+
+`DEV_ANALYTICS.RAW.RAW_WEB_EVENTS` lands as a single VARIANT column, `event_data` (confirmed against `data_gen/load_raw.py`'s `JSON_SOURCE` spec, not assumed). `docs/synthetic_data_spec.md`'s "Web clickstream source" section calls out three injected data-quality issues to handle in staging: a mid-year `user_id` → `customer_global_id` key rename, ~5% web-pixel-retry duplicate events, and late-arriving events (out of scope here — see Phase note above). Before writing any SQL, all three were checked directly against the loaded raw data rather than assumed from the docs or generator:
+
+- **Schema drift**: exactly matches `event_date < 2025-07-01` — 503 of 1,050 raw rows carry `user_id`, 547 carry `customer_global_id`, with zero rows carrying both and zero carrying neither.
+- **Duplicates**: 1,000 distinct `event_id` values across 1,050 raw rows (50 extra rows, matching `data_gen/clickstream.py`'s `DUPLICATE_RATE = 0.05`). For a sample of every duplicated `event_id`, `count(distinct event_data)` across its copies is 1 — these are fully identical row copies (same `event_id` *and* every other field, produced by `dict(events[index])` in the generator), not distinct events that merely share a customer or session. `event_id` is therefore the correct canonical event identity, not a heuristic stand-in.
+- **Malformed events**: none. 0 rows with a missing `event_id`/`event_timestamp`/`event_date`/`ingested_at`/`session_id`/`event_type`, and 0 rows where a direct `::timestamp_ntz`/`::date` cast on the raw VARIANT value fails, across all 1,050 rows.
+
+### Decision: VARIANT parsing via colon syntax, not FLATTEN
+
+Each raw row is already one event, so there is nothing to explode — `web_events_parsed()` (`dbt/macros/web_events_parsed.sql`) extracts every field with `event_data:field::type` colon syntax. `FLATTEN` is for unnesting arrays/nested objects into multiple rows per input row, which doesn't apply here.
+
+### Decision: TRY_CAST for type-sensitive fields, not a plain `::type` cast
+
+**Found and fixed during implementation**, the same way ADR-002 found the missing GBP rate: a plain `::type` cast on a VARIANT does not degrade to `NULL` for an unparseable value the way casting a native-typed column does — it raises a hard SQL error. Confirmed directly with a synthetic literal:
+
+```sql
+select parse_json('{"x": "not-a-date"}'):x::date as bad;
+-- 100071 (22000): Failed to cast variant value "not-a-date" to DATE
+```
+
+Since the whole point of routing "VARIANT parsing failures" to quarantine is to keep one bad event from taking down the build, a plain `::type` cast on `event_timestamp`/`event_date`/`ingested_at`/`quantity` would have defeated the mechanism the first time a malformed event appeared — the model would fail to compile at all rather than quarantine the one bad row. `web_events_parsed()` uses `try_cast(event_data:field::varchar as <type>)` for these four fields instead, which yields `NULL` on an unparseable value (confirmed with the same literal: `try_cast(parse_json('{"x":"not-a-date"}'):x::varchar as date)` returns `NULL`, no error). `event_id`/`session_id`/`event_type`/`customer_id` stay on a plain `::varchar` cast — a VARIANT always has a string representation, so there's no failure mode there for `TRY_CAST` to guard against.
+
+### Decision: coalesce `user_id`/`customer_global_id` into `customer_id`, not a schema-versioned dual column
+
+Two options were considered: expose both `user_id` and `customer_global_id` as separate nullable columns tagged by schema version, or coalesce them into one canonical `customer_id` column.
+
+Coalesce was chosen. The rename is a one-time, permanent cutover in the source system, not two coexisting business concepts that downstream models need to reason about differently — both keys draw from the exact same synthetic `CUST-#####` population (confirmed: `stg_web__events.customer_id` is non-null for all 482 pre-cutoff and all 518 post-cutoff rows, with values spanning the same `CUST-00001`–`CUST-00350` range on both sides), and the two columns are mutually exclusive by construction (never both present on one row). A dual-column design would push the schema-version bookkeeping onto every downstream consumer — including Phase 5's cross-shard identity resolution — for a distinction that carries no actual business meaning once resolved. This mirrors ADR-002's ERP currency conversion: normalize divergent native representations into one canonical column at the staging boundary, rather than propagating the source system's internal versioning downstream. If a future schema drift changed the *meaning* of the identifier (not just its name), a dual-column/schema-versioned approach would be the right call — that's not the case here.
+
+### Decision: dedup via `QUALIFY ROW_NUMBER()`, not `GROUP BY`
+
+`stg_web__events` removes web-pixel-retry duplicates with:
+
+```sql
+qualify row_number() over (partition by event_id order by ingested_at asc) = 1
+```
+
+`GROUP BY event_id` was rejected even though it would produce the same row count here, because it doesn't generalize safely. `GROUP BY` forces every one of the model's ~10 other selected columns to either appear in the `GROUP BY` list or be wrapped in an aggregate — with the current data (duplicates are byte-identical copies) an aggregate like `MAX()` on each column happens to be a no-op, but that's an accident of today's generator, not a property the model enforces. If a future duplicate ever arrived as a genuine retry with a *different* `ingested_at` (the realistic pixel-retry scenario `docs/synthetic_data_spec.md` describes — a delayed re-send, not a byte-for-byte copy), a `GROUP BY`/`MAX()` approach would silently blend fields from different physical rows with no way to express "keep this whole row, not a field-by-field merge." `QUALIFY ROW_NUMBER()` instead picks one whole row deterministically per `event_id` via an explicit, auditable tie-break (`ingested_at asc` — the earliest-arriving copy is treated as canonical, consistent with a real retry scenario where the first pixel fire is the original event), and never merges fields across rows.
+
+### Decision: quarantine is structurally present, currently always empty
+
+`web_quarantine_reason()` (`dbt/macros/web_quarantine_reason.sql`) checks for a missing `event_id`, a missing-or-unparseable `event_timestamp`/`event_date`/`ingested_at` (post-`TRY_CAST`, so this catches both "field absent" and "field present but malformed"), and a missing `session_id`/`event_type`/`customer_id`. Applied identically to `stg_web__events` (keeps only passing rows) and `stg_web__events_quarantine` (keeps only failing rows), exactly mirroring `erp_quarantine_reason()`'s split.
+
+Against the current synthetic dataset this checks for something that doesn't exist: `stg_web__events_quarantine` holds 0 rows (verified directly, not inferred from the passing `not_null` tests on its columns, which pass trivially on an empty table). This is the same situation ADR-002 hit with ERP's quarantine before the GBP rate was added — an empty quarantine table here is the intended signal that validation logic is in place and the current data has nothing to catch, not evidence the checks are unreachable. Unlike ERP's quarantine, `stg_web__events_quarantine` also carries `raw_event_data` (the unparsed VARIANT), not just the parsed columns — for a `TRY_CAST` failure the parsed column is itself `NULL`, so without the raw payload a quarantined row would show only *that* something failed, not *what* the unparseable source value actually was.
+
+Type-specific fields (`page_url`, `product_id`, `quantity`, `search_query`) are deliberately excluded from `web_quarantine_reason()` — each is legitimately null for two of the three `event_type`s (confirmed directly: `search_query` rows carry a null `page_url`/`product_id`), so a blanket `not_null` check on any of them would misclassify normal rows as failures.
+
+### Consequences
+
+- `stg_web__events` holds 1,000 rows (1,050 raw rows − 50 pixel-retry duplicates), matching the 1,000 distinct `event_id` values confirmed directly against the raw table before any model was built. `stg_web__events_quarantine` is empty (0 rows).
+- `event_id` carries `unique`/`not_null` tests on `stg_web__events` and passes against the deduplicated data; this is the model's actual grain guarantee, not a row-count assumption.
+- `web_events_parsed()`'s `TRY_CAST` usage is the reusable pattern for any future VARIANT-sourced staging model in this project — a plain `::type` cast is only safe on a VARIANT field once you're certain (checked, not assumed) that the source never produces a value that fails to convert.
+- `web_quarantine_reason()` is called from both staging models as `{{ web_quarantine_reason() | trim | indent(8) }}` at its multi-line (`case...end`) call site, so the compiled SQL is actually indented to match its surroundings — verified directly against `target/compiled/`, not assumed from the source. `indent()` alone was insufficient: the macro's own leading/trailing newlines (from `{% macro %}`/`{% endmacro %}` each sitting on their own line) made Jinja's filter treat an empty string as "line 1" and therefore skip indenting it, which left `when`/`end` one indent level short of the `case` line's own indent. `trim` first removes those newlines so `indent()`'s width lines up with the call site's actual 8-space indent. This project has a known, confirmed gap where `erp_quarantine_reason()`/`erp_convert_to_usd()` are called with no `indent()` at all and compile with `case`/`end` sitting at column 0 inside an indented `select` — left as-is there (Issue #16/#17 are closed), but not repeated in this PR's new macro.
