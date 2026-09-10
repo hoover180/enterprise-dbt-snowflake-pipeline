@@ -100,7 +100,9 @@ Approximately 5% additional events are exact copies of other events, including t
 
 #### Late-arriving events
 
-Approximately 2% of canonical events are deliberately late-arriving. Their `event_timestamp` is 2 to 4 days after their `event_date`, providing source records whose arrival lags the event date. These records support the Phase 3B backfill demonstration.
+Every event carries three time fields: `event_date` and `event_timestamp` always reflect the true, unshifted moment the event occurred, and a separate `ingested_at` field records when the record was actually ingested. For most events `ingested_at` sits at or a few seconds/minutes after `event_timestamp`, simulating near-immediate ingestion.
+
+Approximately 2% of canonical events are deliberately late-arriving: for these, `ingested_at` is 2 to 4 days after `event_timestamp`, while `event_date` and `event_timestamp` are left exactly as they would be for an on-time event. Late arrival is therefore represented purely by the gap between `ingested_at` and `event_timestamp` -- it is never modeled by displacing `event_timestamp` itself, since doing so would make a late-arriving event indistinguishable from an event that simply happened later. These records support the Phase 3B backfill demonstration.
 
 The data is fictional and contains no production customer information. The default seed makes local regeneration reproducible for dbt development and tests.
 
