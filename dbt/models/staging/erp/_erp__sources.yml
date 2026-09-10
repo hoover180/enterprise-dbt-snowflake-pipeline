@@ -1,0 +1,72 @@
+version: 2
+
+sources:
+  - name: erp
+    database: DEV_ANALYTICS
+    schema: RAW
+    description: >
+      Regional ERP order-item extracts loaded by data_gen/load_raw.py.
+      Column names are left exactly as each region's source system names
+      them -- see docs/synthetic_data_spec.md for the full field mapping.
+    tables:
+      - name: us_orders
+        identifier: US_ORDERS
+        description: >
+          US ERP shard, order-item grain. Business key is (order_id,
+          line_item_no) -- order_id repeats once per item on the order.
+        columns:
+          - name: order_id
+            description: Native US order identifier. Not unique alone at order-item grain.
+          - name: customer_id
+            description: Native US customer identifier (CUST-#####). Preserved as-is; no cross-shard identity resolution at this layer.
+          - name: customer_email
+            description: Customer email, sourced from the shared synthetic identity pool.
+          - name: order_date
+            description: Order date. DATE type with no time-of-day component.
+          - name: order_status
+            description: Current (destructively overwritten) order status. No status history in the source.
+          - name: sku
+            description: Product identifier.
+          - name: line_item_no
+            description: Line-item sequence number within the order.
+          - name: quantity
+            description: Quantity of the item on this line.
+          - name: unit_price
+            description: Unit price in the order's native currency.
+          - name: currency
+            description: Native currency code for this shard (USD).
+          - name: sales_tax
+            description: Tax amount for this line, in the order's native currency.
+          - name: ship_to_country
+            description: Shipping destination country code.
+
+      - name: eu_orders
+        identifier: EU_ORDERS
+        description: >
+          EU ERP shard, order-item grain. Business key is (order_no,
+          item_seq) -- order_no repeats once per item on the order.
+        columns:
+          - name: order_no
+            description: Native EU order identifier. Not unique alone at order-item grain.
+          - name: client_ref
+            description: Native EU customer identifier (EU-CLI-######), independently assigned. Preserved as-is; no cross-shard identity resolution at this layer.
+          - name: contact_email
+            description: Customer email, sourced from the shared synthetic identity pool.
+          - name: placed_on
+            description: Order date. DATE type with no time-of-day component.
+          - name: fulfillment_state
+            description: Current (destructively overwritten) order status. No status history in the source.
+          - name: product_code
+            description: Product identifier.
+          - name: item_seq
+            description: Line-item sequence number within the order.
+          - name: units
+            description: Quantity of the item on this line.
+          - name: price_each
+            description: Unit price in the order's native currency.
+          - name: currency_code
+            description: Native currency code for this shard (EUR or GBP).
+          - name: vat_amount
+            description: VAT amount for this line, in the order's native currency.
+          - name: ship_to_country
+            description: Shipping destination country code.
