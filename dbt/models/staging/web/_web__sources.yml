@@ -22,38 +22,29 @@ sources:
           into a single VARIANT column. Covers page_view, cart_addition,
           and search_query event types.
 
-          Freshness is keyed on ingested_at (pipeline arrival time), not
-          event_timestamp (when the click actually happened) -- this
-          source is the one place in this project that already names that
-          distinction explicitly (ADR-004/ADR-005): event_timestamp can be
-          arbitrarily old (a legitimately late-arriving event), so it says
-          nothing about whether the table itself was recently loaded,
-          which is what freshness is actually meant to catch. loaded_at_field
-          is the VARIANT expression `event_data:ingested_at::timestamp_tz`
-          (dbt supports a SQL expression here, not only a bare column
-          name), matching web_events_parsed()'s own cast. "Stale" means no
-          event with a recent ingested_at has landed; warn after 24 hours,
-          error after 48 hours -- the same cadence assumption as the
-          erp/crm sources (see ADR-007), not a threshold padded for the
-          ~2% of events that are legitimately 2-4 days late (ADR-004/005):
-          that lag affects individual rows' ingested_at relative to their
-          own event_timestamp, not how recent the table's *most recently
-          ingested* row is, which is what this check actually measures.
+          Freshness is keyed on Snowflake's warehouse-metadata LAST_ALTERED
+          (no loaded_at_field configured), matching the erp/crm sources --
+          not on ingested_at. ingested_at is synthetic business data
+          (data_gen/clickstream.py's simulated pipeline-arrival timestamp
+          for the late-arrival demo, ADR-004/ADR-005), not a record of when
+          Snowflake actually loaded the row; a field being named like a
+          timestamp doesn't make it a valid freshness signal, and this PR's
+          fix (ADR-007) corrects that category error. data_gen/load_raw.py
+          does a full CREATE OR REPLACE TABLE on this table on every run,
+          same as the CSV sources, so LAST_ALTERED exactly equals the last
+          load time. "Stale" means this table hasn't been reloaded within
+          the assumed batch cadence; warn after 24 hours, error after 48
+          hours -- the same cadence assumption as the erp/crm sources (see
+          ADR-007).
 
-          Known consequence, documented rather than hidden: this project's
-          synthetic data pins ingested_at to a fixed historical window
-          (2025-01-05 to 2025-12-31, matching erp.py/crm.py's own
-          AS_OF_DATE determinism fix) instead of wall-clock "now". Run
-          against real wall-clock time, this freshness check will
-          therefore always report error, no matter how recently
-          data_gen/load_raw.py was actually last run -- a property of the
-          static synthetic dataset never advancing its embedded
-          timestamps, not a misconfigured check. See ADR-007.
+          ingested_at itself is untouched by this change and still drives
+          stg_web__events' late-arrival logic and
+          int_web_events_incremental's lookback window (ADR-004/ADR-005) --
+          only its use for source freshness was removed.
         config:
           freshness:
             warn_after: {count: 24, period: hour}
             error_after: {count: 48, period: hour}
-          loaded_at_field: event_data:ingested_at::timestamp_tz
         columns:
           - name: event_data
             description: >
