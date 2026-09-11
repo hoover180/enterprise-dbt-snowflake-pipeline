@@ -74,6 +74,10 @@ Orders contain one to four items, so their order identifier repeats across rows.
 
 Faker supplies dates, while seeded pseudo-random generation supplies customers, products, quantities, prices, tax, currencies, and item counts. The data is fictional and contains no production customer information. The default seed makes local regeneration reproducible for dbt development and tests.
 
+### Fixed date window
+
+`order_date` is drawn from a fixed window anchored to `AS_OF_DATE = 2025-12-31` (365 days back through that date), the same fixed reference date `clickstream.py` uses for `EVENT_END`. Earlier revisions of `erp.py` (and `crm.py`) derived this window from `date.today()`, which meant every date value silently drifted forward on each regeneration even with the seed held fixed -- only the RNG-driven content (currencies, statuses, item counts, etc.) was actually reproducible. Keep all three generators' date windows pinned to fixed constants; do not reintroduce `date.today()` into any of them.
+
 ## Web clickstream source
 
 `data_gen/clickstream.py` creates a raw JSON extract for the web analytics source:
@@ -149,6 +153,10 @@ The default is 350 accounts and 900 tickets, with a repeatable seed. Use `--acco
 Approximately 3-5% of the `account_id` values referenced in `CRM_TICKETS.csv` do not appear in `CRM_CUSTOMERS.csv` at all. These ghost account IDs are drawn from a number range immediately past the real account range, so they can never collide with a real account, and simulate accounts that were deleted from the CRM while their ticket history was retained. They are detectable with a simple anti-join of `CRM_TICKETS.csv.account_id` against `CRM_CUSTOMERS.csv.account_id`.
 
 The data is fictional and contains no production customer information. The default seed makes local regeneration reproducible for dbt development and tests.
+
+### Fixed date window
+
+`created_date`, `last_seen_date` (accounts), and `created_date` (tickets) are all drawn from windows anchored to the same fixed `AS_OF_DATE = 2025-12-31` reference date `erp.py` and `clickstream.py` use, not `date.today()` -- see [Fixed date window](#fixed-date-window) above for why this matters for reproducibility.
 
 ## Deliberate non-messiness
 

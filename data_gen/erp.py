@@ -18,6 +18,14 @@ from identity_pool import IDENTITY_POOL_SEED, build_identity_pool
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data"
 REGIONS = ("US", "EU")
 
+# Fixed "as-of" reference date, matching clickstream.py's EVENT_END, so
+# regeneration with the same seed is fully reproducible: date.today() would
+# leave the RNG-driven content identical but silently drift every date value
+# forward by however many days have passed since the last run.
+AS_OF_DATE = date(2025, 12, 31)
+ORDER_DATE_START = AS_OF_DATE - timedelta(days=365)
+ORDER_DATE_END = AS_OF_DATE
+
 US_COLUMNS = {
     "order_id": "order_id",
     "customer_id": "customer_id",
@@ -96,7 +104,7 @@ def build_order(
     else:
         customer_id = f"CUST-{customer_index:05d}"
     customer_email = email_by_index[customer_index]
-    order_date = fake.date_between(start_date=date.today() - timedelta(days=365), end_date=date.today())
+    order_date = fake.date_between(start_date=ORDER_DATE_START, end_date=ORDER_DATE_END)
     currency = "USD" if region == "US" else rng.choice(("EUR", "GBP"))
     shipping_country = "US" if region == "US" else rng.choice(("DE", "FR", "NL", "ES", "IT"))
 
