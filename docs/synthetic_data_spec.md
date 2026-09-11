@@ -50,7 +50,7 @@ ERP's `customer_id` (US) and `client_ref` (EU), and CRM's `account_id`, are inde
 
 The EU shard's `client_ref` is a sequential `EU-CLI-######` counter, assigned the first time a given customer index is encountered while generating the EU order stream and reused for that same customer index for the rest of that run (see `data_gen/erp.py`'s `eu_client_ref_by_index` mapping). This makes `client_ref` stable *within one deterministic generation run*, exactly like every other identifier in this project -- it is not a claim that these values would persist across independent, non-deterministic real-world extracts the way a genuine EU ERP's customer master key might.
 
-The genuine, deterministic join key between US and EU (and between ERP and CRM) is normalized email, sourced from this shared identity pool: every source resolves the same customer index to the same email address, so a case-insensitive/whitespace-normalized match on email reliably links records across shards and systems. For Phase 5: ERP (both shards) and CRM each carry a real person-level identifier (an email address) that a real ERP and CRM plausibly both capture, so matching on it is a legitimate deterministic join rather than a coincidence of shared test data -- the same mechanism links US to EU as links ERP to CRM. Clickstream events, by contrast, only carry the `CUST-#####` index itself as `user_id`/`customer_global_id` — a convenience of this synthetic generator, not something a real web analytics pixel would know — so any resolution logic built against it should be treated as a heuristic stand-in for real-world web identity resolution (cookies, sessions, device fingerprints), not a second deterministic key.
+The genuine, deterministic join key between US and EU (and between ERP and CRM) is normalized email, sourced from this shared identity pool: every source resolves the same customer index to the same email address, so a case-insensitive/whitespace-normalized match on email reliably links records across shards and systems. For Phase 5: ERP (both shards) and CRM each carry a real person-level identifier (an email address) that a real ERP and CRM plausibly both capture, so matching on it is a legitimate deterministic join rather than a coincidence of shared test data -- the same mechanism links US to EU as links ERP to CRM. Clickstream events, by contrast, never carry a `CUST-#####`-style index at all -- see "Web clickstream source" below. Where a web event carries an identity signal, it's an email captured for the same real-world reason ERP/CRM would capture one, but sparsely and imperfectly (a real web pixel only sometimes captures identity, and what it captures is sometimes mistyped or inconsistently cased) -- so resolving it is a genuine heuristic problem (fuzzy matching against ERP/CRM's canonical email), not a second deterministic key. See ADR-008 in `docs/data_modeling_decisions.md` for the history: this was originally built as a direct `CUST-#####` copy, which was a Phase 1 gap relative to this stated design and was fixed ahead of Phase 5A's identity-resolution work.
 
 ## Injected messiness
 
@@ -94,9 +94,29 @@ The default is 1,000 canonical events plus injected duplicates, with a repeatabl
 
 ### Injected messiness
 
+#### Sparse, tiered-dirty customer identity capture
+
+Unlike ERP and CRM, clickstream events do not carry a stable customer identifier by default -- most web traffic is anonymous, and a real analytics pixel only captures a customer identity signal when something in the page actually surfaces one (a logged-in session, an account-linked cart, a manually entered checkout email). `data_gen/clickstream.py` models this with a per-event-type capture probability rather than a uniform fraction, since different event types plausibly carry identity at very different rates:
+
+| Event type      | Capture rate | Why |
+| ---------------- | ------------ | --- |
+| `page_view`       | 8%           | Ordinary browsing. Only carries identity when it happens inside an already-authenticated session -- most page views don't. |
+| `search_query`     | 8%           | Same population as `page_view`: searching doesn't require authentication, so there's no reason for it to differ. |
+| `cart_addition`    | 55%          | Materially more likely, since adding to cart is the step closest to checkout -- an account-linked cart or a guest-checkout email capture (for retargeting/abandoned-cart flows) is common here -- but still well under certainty, since plenty of carts are built by browsers who never authenticate or leave contact details. |
+
+Against the default 1,000-event run, this produces roughly a 14% overall identity-capture rate (measured directly against the current generated extract, not assumed).
+
+When a signal is captured, its value is drawn from the same shared identity pool (`data_gen/identity_pool.py`) ERP/CRM use, but is not always clean -- mirroring ADR-006's reasoned, tiered approach to CRM's country dirtiness rather than uniform randomized noise. Among captured signals:
+
+- **~55% exact** -- byte-for-byte identical to the customer's canonical email. Represents identity captured programmatically from an account record (e.g. a logged-in session's stored email), which a human never retyped.
+- **~25% Tier 1 (trivial normalization)** -- casing or whitespace noise (uppercased, capitalized local-part, or leading/trailing whitespace) that any reasonable lowercase-and-trim normalization step resolves. Represents a human typing or pasting the email into a guest-checkout field.
+- **~20% Tier 2 (genuine typo)** -- a single-character edit (adjacent-character transposition, a dropped character, or a substitution with a keyboard-adjacent key) on the local part only, requiring real fuzzy matching, not just normalization. Represents a fat-fingered manual entry. Bounded to one edit on the local part (domain never touched) so it can't plausibly land on a different real customer's email and create genuine ambiguity -- the generator checks this directly rather than assuming it, though a collision has never been observed at this dataset's scale.
+
+`data_gen/clickstream.py` also writes `data/CLICKSTREAM_IDENTITY_TRUTH.csv`, a per-event sidecar recording which customer each event truly belongs to and how (if at all) its identity signal was captured/distorted -- generated before dirtying, since the dirtying is designed to not be reversible from the output alone. This file is not loaded into `RAW_WEB_EVENTS` (see `docs/loading_notes.md`); it exists purely so `data_gen/build_match_truth.py` can build `dbt/seeds/seed_match_truth.csv` without needing to reverse-engineer ground truth from deliberately-dirty data. See ADR-008 in `docs/data_modeling_decisions.md` for the measured match-rate breakdown this design produces and why it matters for Phase 5A.
+
 #### Mid-year customer-key schema drift
 
-Events before the fixed 2025-07-01 cutoff use `user_id` for the customer identifier. Events on or after the cutoff use `customer_global_id` instead. The identifier values are drawn from the same synthetic customer population, but the key name changes and requires normalization in staging.
+Events before the fixed 2025-07-01 cutoff use `user_email` for the captured identity field, when one is captured at all. Events on or after the cutoff use `customer_global_email` instead. This is the same field-name drift the original design had (then named `user_id`/`customer_global_id`) -- only the field names and the content they carry changed, not the schema-evolution story itself: a source system renaming a field mid-year is orthogonal to what type of value that field holds. An event carries at most one of the two keys, never both, and (unlike the pre-fix version of this field) carries neither on the majority of rows where no identity signal was captured at all.
 
 #### Web-pixel retry duplicates
 
@@ -160,4 +180,4 @@ The data is fictional and contains no production customer information. The defau
 
 ## Deliberate non-messiness
 
-This Phase 1 extract does not inject nulls, duplicate line keys, invalid dates, or mismatched totals. Those defects would test data-quality handling rather than the specific regional-sharding, destructive-update, and order-item-grain behaviors required here.
+This Phase 1 extract does not inject nulls, duplicate line keys, invalid dates, or mismatched totals. Those defects would test data-quality handling rather than the specific regional-sharding, destructive-update, and order-item-grain behaviors required here. Web clickstream's `user_email`/`customer_global_email` being absent on most events (see "Sparse, tiered-dirty customer identity capture" above) is not an exception to this -- it's not an injected data-quality defect, it's the field legitimately having no value most of the time, the same way `page_url` legitimately has no value on a `search_query` event.
