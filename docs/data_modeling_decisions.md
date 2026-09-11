@@ -389,7 +389,7 @@ The var is a flat list (`["US", "USA", "United States", "u.s.a."]`), not a `vari
 ## ADR-007: Source database targeting, freshness thresholds, dbt_utils integration
 
 **Status:** Accepted (2026-09-11).
-**Phase:** Phase 3D (this PR). Follows Phases 3A/3B/3C (Issues #16/#17, #29/#31, #33) -- the 1:1 staging views themselves are unchanged here; this PR is cross-cutting hardening across all three sources' `_*__sources.yml` files plus one genuine staging-model improvement found while investigating.
+**Phase:** Phase 4 (this PR). Follows Phases 3A/3B/3C (Issues #16/#17, #29/#31, #33) -- the 1:1 staging views themselves are unchanged here; this PR is cross-cutting hardening across all three sources' `_*__sources.yml` files plus one genuine staging-model improvement found while investigating.
 
 ### Context: the `database: DEV_ANALYTICS` bug
 
