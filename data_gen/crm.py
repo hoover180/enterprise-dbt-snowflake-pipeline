@@ -20,6 +20,16 @@ DEFAULT_TICKET_COUNT = 900
 GHOST_ACCOUNT_RATE = 0.04
 GHOST_ACCOUNT_POOL_SIZE = 25
 
+# Fixed "as-of" reference date, matching clickstream.py's EVENT_END, so
+# regeneration with the same seed is fully reproducible: date.today() would
+# leave the RNG-driven content identical but silently drift every date value
+# forward by however many days have passed since the last run.
+AS_OF_DATE = date(2025, 12, 31)
+ACCOUNT_CREATED_START = AS_OF_DATE - timedelta(days=730)
+ACCOUNT_CREATED_END = AS_OF_DATE - timedelta(days=1)
+TICKET_CREATED_START = AS_OF_DATE - timedelta(days=365)
+TICKET_CREATED_END = AS_OF_DATE
+
 COUNTRY_CODES = ("US", "US", "US", "DE", "FR", "NL", "ES", "IT")
 US_COUNTRY_VARIANTS = ("US", "USA", "United States", "u.s.a.")
 
@@ -77,8 +87,8 @@ def build_account(
     customer_index = rng.randint(1, 350)
     person = person_by_index[customer_index]
 
-    created_date = fake.date_between(start_date=date.today() - timedelta(days=730), end_date=date.today() - timedelta(days=1))
-    last_seen_date = fake.date_between(start_date=created_date, end_date=date.today())
+    created_date = fake.date_between(start_date=ACCOUNT_CREATED_START, end_date=ACCOUNT_CREATED_END)
+    last_seen_date = fake.date_between(start_date=created_date, end_date=AS_OF_DATE)
 
     return {
         "account_id": f"ACCT-{account_number:05d}",
@@ -97,7 +107,7 @@ def build_ticket(
     rng: random.Random,
 ) -> dict[str, Any]:
     """Create one support ticket row referencing an account by account_id."""
-    created_date = fake.date_between(start_date=date.today() - timedelta(days=365), end_date=date.today())
+    created_date = fake.date_between(start_date=TICKET_CREATED_START, end_date=TICKET_CREATED_END)
     return {
         "ticket_id": f"TCKT-{ticket_number:06d}",
         "account_id": account_id,
