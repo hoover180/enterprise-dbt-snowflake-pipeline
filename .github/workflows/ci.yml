@@ -41,5 +41,8 @@ jobs:
                 threads: 1
           EOF
 
+      - name: dbt deps
+        run: dbt deps --project-dir dbt --profiles-dir ~/.dbt
+
       - name: dbt parse
         run: dbt parse --project-dir dbt --profiles-dir ~/.dbt

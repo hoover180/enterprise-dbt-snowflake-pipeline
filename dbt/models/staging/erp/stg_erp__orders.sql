@@ -8,7 +8,8 @@ keyed as (
 
     select
         *,
-        region || '-' || order_id as order_key
+        {{ dbt_utils.generate_surrogate_key(['region', 'order_id']) }}
+            as order_key
     from unioned
 
 )

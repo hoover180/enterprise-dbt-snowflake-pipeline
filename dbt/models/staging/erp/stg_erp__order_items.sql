@@ -8,7 +8,9 @@ validated as (
 
     select
         *,
-        region || '-' || source_order_id || '-' || source_line_item_id::varchar
+        {{ dbt_utils.generate_surrogate_key([
+            'region', 'source_order_id', 'source_line_item_id'
+        ]) }}
             as order_item_key,
         {{ erp_quarantine_reason() }} as quarantine_reason
     from unioned

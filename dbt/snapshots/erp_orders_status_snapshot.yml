@@ -24,6 +24,9 @@ snapshots:
           - unique
           - not_null
       - name: order_key
-        description: Composite business key (region-order_id), matching stg_erp__orders. Not unique here -- an order with status history has multiple rows.
+        description: >
+          Surrogate key (region, order_id), matching stg_erp__orders.order_key
+          (dbt_utils.generate_surrogate_key() -- see ADR-007). Not unique
+          here -- an order with status history has multiple rows.
         data_tests:
           - not_null

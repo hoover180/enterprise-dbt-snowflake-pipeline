@@ -15,7 +15,13 @@ models:
       order_item_key.
     columns:
       - name: order_item_key
-        description: Composite business key (region-source_order_id-source_line_item_id) at order-item grain.
+        description: >
+          Surrogate key over the composite business key (region,
+          source_order_id, source_line_item_id) at order-item grain --
+          generated via dbt_utils.generate_surrogate_key() (see ADR-007 in
+          docs/data_modeling_decisions.md). An md5 hash, not a readable
+          delimited string; nothing in this project parses its value, only
+          its uniqueness.
         data_tests:
           - unique
           - not_null
@@ -66,7 +72,13 @@ models:
       "Deliberate non-messiness").
     columns:
       - name: order_key
-        description: Composite business key (region-order_id) at order grain.
+        description: >
+          Surrogate key over the composite business key (region, order_id)
+          at order grain -- generated via dbt_utils.generate_surrogate_key(),
+          matching stg_erp__order_items.order_item_key's convention (see
+          ADR-007). Not the same value the snapshot's own unique_key config
+          uses -- erp_orders_status_snapshot.yml lists [region, order_id]
+          directly (see ADR-003).
         data_tests:
           - unique
           - not_null
