@@ -2,12 +2,33 @@ version: 2
 
 sources:
   - name: erp
-    database: DEV_ANALYTICS
     schema: RAW
     description: >
       Regional ERP order-item extracts loaded by data_gen/load_raw.py.
       Column names are left exactly as each region's source system names
       them -- see docs/synthetic_data_spec.md for the full field mapping.
+
+      No `database:` is set here (see ADR-007 in
+      docs/data_modeling_decisions.md) -- omitting it lets dbt default to
+      target.database, so a STAGE/PROD run reads that environment's own
+      raw tables instead of the hardcoded DEV_ANALYTICS this previously
+      pointed at unconditionally.
+
+      Freshness is keyed on Snowflake's warehouse-metadata LAST_ALTERED
+      for both tables below (no loaded_at_field configured), not on
+      order_date/placed_on -- those are the order's business date, not
+      when this table was last (re)loaded, and data_gen/load_raw.py does a
+      full CREATE OR REPLACE TABLE on every run, so LAST_ALTERED exactly
+      equals the last load time. "Stale" means this table hasn't been
+      reloaded within the assumed batch cadence -- warn after 24 hours,
+      error after 48 hours. No real refresh SLA is documented for this
+      synthetic loader; this mirrors a typical nightly-batch assumption
+      (missed one cycle = warn, missed two = error), not a measured
+      production SLA. See ADR-007.
+    config:
+      freshness:
+        warn_after: {count: 24, period: hour}
+        error_after: {count: 48, period: hour}
     tables:
       - name: us_orders
         identifier: US_ORDERS

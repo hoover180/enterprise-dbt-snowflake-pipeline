@@ -2,13 +2,31 @@ version: 2
 
 sources:
   - name: crm
-    database: DEV_ANALYTICS
     schema: RAW
     description: >
       CRM account and support-ticket extracts loaded by
       data_gen/load_raw.py -- see docs/synthetic_data_spec.md, "CRM
       source", for the full field mapping and injected messiness (dirty
       country formatting, ~3-5% ghost account references).
+
+      No `database:` is set here (see ADR-007 in
+      docs/data_modeling_decisions.md) -- omitting it lets dbt default to
+      target.database, matching the erp/web sources' fix for the same
+      environment-promotion issue.
+
+      Freshness is keyed on Snowflake's warehouse-metadata LAST_ALTERED
+      for both tables below (no loaded_at_field configured), not on
+      created_date/last_seen_date -- those are account/ticket business
+      dates, not when this table was last (re)loaded, and
+      data_gen/load_raw.py does a full CREATE OR REPLACE TABLE on every
+      run, so LAST_ALTERED exactly equals the last load time. Same
+      warn/error thresholds and cadence assumption as the erp source (see
+      that source's description and ADR-007) -- no differentiated SLA is
+      documented between the two, so this project doesn't invent one.
+    config:
+      freshness:
+        warn_after: {count: 24, period: hour}
+        error_after: {count: 48, period: hour}
     tables:
       - name: crm_customers
         identifier: CRM_CUSTOMERS
