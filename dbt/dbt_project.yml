@@ -25,6 +25,17 @@ vars:
   erp_eur_to_usd_rate: 1.10
   erp_gbp_to_usd_rate: 1.27
 
+  # CRM_CUSTOMERS.country renders the United States inconsistently
+  # (docs/synthetic_data_spec.md, "Dirty country formatting"; confirmed
+  # directly against DEV_ANALYTICS.RAW.CRM_CUSTOMERS -- see ADR-006). A
+  # handful of fixed string variants, so this is a var, not a seed --
+  # EU country codes (DE/FR/NL/ES/IT) are already canonical and are left
+  # untouched by crm_standardize_country(). Every variant here collapses
+  # to the same canonical value (US), so this is a flat list, not a
+  # variant->canonical dict -- if a future country ever needed a
+  # different canonical target, this would become a dict at that point.
+  crm_us_country_variants: ["US", "USA", "United States", "u.s.a."]
+
 models:
   enterprise_dbt_snowflake_pipeline:
     staging:

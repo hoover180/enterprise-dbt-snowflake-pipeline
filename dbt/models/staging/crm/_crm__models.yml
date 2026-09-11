@@ -1,0 +1,94 @@
+version: 2
+
+models:
+  - name: stg_crm__customers
+    description: >
+      Canonical, account-grain view of the CRM customer source.
+      country is standardized via the crm_standardize_country() macro
+      and the crm_us_country_variants var (see ADR-006 in
+      docs/data_modeling_decisions.md) -- United States variants
+      (US/USA/United States/u.s.a.) collapse to US; other countries pass
+      through unchanged. No row-level validation/quarantine here: every
+      row in the raw source has all six fields populated (confirmed
+      directly, 0 nulls across 350 rows -- see
+      docs/synthetic_data_spec.md, "Deliberate non-messiness"), so there
+      is nothing for a quarantine split to catch.
+    columns:
+      - name: account_id
+        description: CRM's own internal account identifier (ACCT-#####). Business key.
+        data_tests:
+          - unique
+          - not_null
+      - name: contact_email
+        data_tests:
+          - not_null
+      - name: name
+        data_tests:
+          - not_null
+      - name: country
+        description: >
+          Standardized country value. US variants collapse to US; EU
+          codes (DE/FR/NL/ES/IT) pass through unchanged -- see ADR-006.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["US", "DE", "FR", "NL", "ES", "IT"]
+      - name: created_date
+        data_tests:
+          - not_null
+      - name: last_seen_date
+        data_tests:
+          - not_null
+
+  - name: stg_crm__tickets
+    description: >
+      Canonical, ticket-grain view of the CRM support-ticket source.
+      Left-joins to stg_crm__customers to flag tickets whose account_id
+      does not exist in the customer master (is_ghost_account) --
+      approximately 3-5% of tickets, per docs/synthetic_data_spec.md
+      ("Ghost accounts"). Ghost tickets are flagged, not dropped or
+      quarantined -- the ticket row itself is structurally valid; only
+      its account reference is orphaned. See ADR-006 for the verified
+      counts and why this is the only anomaly condition CRM's synthetic
+      data actually exercises (there is no separate
+      inactive-but-present-customer condition).
+    columns:
+      - name: ticket_id
+        description: CRM's own internal ticket identifier (TCKT-######). Business key.
+        data_tests:
+          - unique
+          - not_null
+      - name: account_id
+        description: >
+          References stg_crm__customers.account_id. Not guaranteed to
+          resolve there -- see is_ghost_account.
+        data_tests:
+          - not_null
+      - name: category
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["billing", "technical", "account_access", "shipping", "general_inquiry"]
+      - name: created_date
+        data_tests:
+          - not_null
+      - name: status
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["open", "pending", "resolved", "closed"]
+      - name: is_ghost_account
+        description: >
+          True when account_id has no corresponding record in
+          stg_crm__customers -- an orphaned account reference.
+          Verified directly against DEV_ANALYTICS.RAW: 36 of 900 tickets
+          (4.0%), referencing 19 distinct ghost account_ids -- see
+          ADR-006. Not asserted at a fixed count here (see
+          assert_stg_crm__tickets_ghost_flag_matches_antijoin in
+          dbt/tests/) since the count is a function of the generator's
+          seed, not a schema invariant.
+        data_tests:
+          - not_null
