@@ -1,0 +1,60 @@
+version: 2
+
+sources:
+  - name: crm
+    database: DEV_ANALYTICS
+    schema: RAW
+    description: >
+      CRM account and support-ticket extracts loaded by
+      data_gen/load_raw.py -- see docs/synthetic_data_spec.md, "CRM
+      source", for the full field mapping and injected messiness (dirty
+      country formatting, ~3-5% ghost account references).
+    tables:
+      - name: crm_customers
+        identifier: CRM_CUSTOMERS
+        description: >
+          One row per CRM account. account_id is CRM's own independently
+          assigned identifier (ACCT-#####) -- no digit relationship to
+          ERP's customer_id/client_ref. The genuine cross-system join key
+          is contact_email, sourced from the shared synthetic identity
+          pool (Phase 5).
+        columns:
+          - name: account_id
+            description: CRM's own internal account identifier (ACCT-#####).
+          - name: contact_email
+            description: Email address, sourced from the shared identity pool.
+          - name: name
+            description: Account holder name, sourced from the shared identity pool.
+          - name: country
+            description: >
+              Account country. Inconsistently formatted for the United
+              States (US/USA/United States/u.s.a., randomly chosen per
+              row); other countries are plain two-letter codes. See
+              ADR-006 in docs/data_modeling_decisions.md.
+          - name: created_date
+            description: Date the account was created in the CRM.
+          - name: last_seen_date
+            description: >
+              Date of the account's most recent activity. Not currently
+              used for any staleness/inactivity inference -- see ADR-006.
+
+      - name: crm_tickets
+        identifier: CRM_TICKETS
+        description: >
+          One row per support ticket. Approximately 3-5% of account_id
+          values referenced here do not exist in CRM_CUSTOMERS at all --
+          "ghost accounts", i.e. orphaned account references with no
+          corresponding CRM_CUSTOMERS record. See ADR-006.
+        columns:
+          - name: ticket_id
+            description: CRM's own internal ticket identifier (TCKT-######).
+          - name: account_id
+            description: >
+              References crm_customers.account_id. Not guaranteed to
+              exist there -- see "ghost accounts" above.
+          - name: category
+            description: Ticket category.
+          - name: created_date
+            description: Date the ticket was created.
+          - name: status
+            description: Current ticket status.
