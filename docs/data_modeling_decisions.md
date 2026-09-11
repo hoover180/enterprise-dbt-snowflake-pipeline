@@ -531,11 +531,11 @@ Against the default 1,000-event run: **140/1,000 canonical events (14.0%) carry 
 
 Among captured signals, the observed value isn't always the customer's canonical email -- mirroring ADR-006's reasoned, tiered approach to CRM's country dirtiness rather than uniform randomized noise:
 
-- **Exact (~55%, target)** -- byte-for-byte identical. Represents identity captured programmatically from an account record.
-- **Tier 1, trivial normalization (~25%, target)** -- casing/whitespace noise (`apply_trivial_normalization_noise()`: uppercased, capitalized local-part, or leading/trailing whitespace), resolved by any reasonable lowercase-and-trim step. Represents a human typing/pasting into a guest-checkout field.
-- **Tier 2, genuine typo (~20%, target)** -- a single-character edit on the local part only (`apply_single_character_typo()`: adjacent-character transposition, a dropped character, or a keyboard-adjacent substitution), requiring real fuzzy matching. Bounded to one edit on the local part (domain never touched), with a check-and-retry collision guard against the full identity-pool email set so a distortion can never land on a *different* real customer's email -- confirmed directly: 0 of 28 realized tier-2 distortions triggered the guard's fallback, at this dataset's scale.
+- **Exact (~55% of captured events, target)** -- byte-for-byte identical. Represents identity captured programmatically from an account record.
+- **Tier 1, trivial normalization (~25% of captured events, target)** -- casing/whitespace noise (`apply_trivial_normalization_noise()`: uppercased, capitalized local-part, or leading/trailing whitespace), resolved by any reasonable lowercase-and-trim step. Represents a human typing/pasting into a guest-checkout field.
+- **Tier 2, genuine typo (~20% of captured events, target)** -- a single-character edit on the local part only (`apply_single_character_typo()`: adjacent-character transposition, a dropped character, or a keyboard-adjacent substitution), requiring real fuzzy matching. Bounded to one edit on the local part (domain never touched), with a check-and-retry collision guard against the full identity-pool email set so a distortion can never land on a *different* real customer's email -- confirmed directly: 0 of 28 realized tier-2 distortions triggered the guard's fallback, at this dataset's scale.
 
-Measured against the actual generated data (`data/CLICKSTREAM_IDENTITY_TRUTH.csv`, 140 captured events): **69 exact (49.3%), 43 tier 1 (30.7%), 28 tier 2 (20.0%)** -- close to the target 55/25/20 split (single-seed sampling variance, not a bug). All 28 tier-2 events map to 28 distinct customers (no repeats), so this isn't a handful of edge cases concentrated on one or two people.
+Measured against the actual generated data (`data/CLICKSTREAM_IDENTITY_TRUTH.csv`, 140 captured events): **69 exact (49.3% of captured events), 43 tier 1 (30.7% of captured events), 28 tier 2 (20.0% of captured events)** -- close to the target 55/25/20 split of captured events (single-seed sampling variance, not a bug). All 28 tier-2 events map to 28 distinct customers (no repeats), so this isn't a handful of edge cases concentrated on one or two people.
 
 ### Decision: field renamed `user_email`/`customer_global_email`, not kept as `user_id`/`customer_global_id`
 
@@ -585,7 +585,7 @@ All four numbers below were confirmed twice -- once against the local `data/CLIC
 | Identity capture rate (of 1,000 canonical events) | 140 | 14.0% |
 | Raw exact-match rate (of 140 captured, byte-for-byte vs. canonical email) | 69 | 49.3% |
 | Normalized exact-match rate (of 140 captured, after lowercase+trim) | 112 | 80.0% |
-| **Residual requiring genuine heuristic resolution** | **28** | **20.0%** |
+| **Residual requiring genuine heuristic resolution (of 140 captured)** | **28** | **20.0%** |
 
 The critical result is the last row: 28 events, spanning 28 distinct customers, that no amount of case-folding or whitespace-trimming resolves -- an actual fuzzy-matching problem (bounded single-character-edit typos against a 350-person candidate pool) for Phase 5A's identity-resolution model to solve, not zero, and not just a couple of edge cases either. Before this fix, the equivalent residual was 0: the raw exact-match rate was 100% on every one of 1,000 events, because the "identity signal" was a direct copy of the join key. Phase 5A now has a real problem to solve.
 
