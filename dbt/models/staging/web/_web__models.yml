@@ -19,7 +19,12 @@ models:
           - unique
           - not_null
       - name: event_timestamp
-        description: True, unshifted occurrence time of the event (never displaced for late arrival).
+        description: >
+          True, unshifted occurrence time of the event (never displaced for
+          late arrival). TIMESTAMP_TZ, not TIMESTAMP_NTZ -- see ADR-005 in
+          docs/data_modeling_decisions.md for why TIMESTAMP_NTZ silently
+          produced wrong results once a UTC-boundary-comparing consumer
+          was built on top of this column.
         data_tests:
           - not_null
       - name: event_date
@@ -28,10 +33,11 @@ models:
           - not_null
       - name: ingested_at
         description: >
-          Pipeline ingestion time. At or shortly after event_timestamp for
-          most events; 2-4 days after for the ~2% of canonical events
-          that are deliberately late-arriving (Phase 3B backfill
-          demonstration -- not consumed by this model).
+          Pipeline ingestion time (TIMESTAMP_TZ -- see ADR-005). At or
+          shortly after event_timestamp for most events; 2-4 days after
+          for the ~2% of canonical events that are deliberately
+          late-arriving (Phase 3B backfill demonstration -- not consumed
+          by this model).
         data_tests:
           - not_null
       - name: session_id

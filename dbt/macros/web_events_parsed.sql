@@ -26,6 +26,19 @@
     (confirmed directly: 0 failed casts across all 1,050 rows), so this
     path isn't exercised today, but it is real, not decorative.
 
+    event_timestamp / ingested_at cast to TIMESTAMP_TZ, not TIMESTAMP_NTZ
+    (found and fixed during Phase 3B's incremental-model work -- see ADR-005
+    in docs/data_modeling_decisions.md). The source values are UTC
+    ISO-8601 strings ('...Z' suffix). Casting to TIMESTAMP_NTZ silently
+    drops that UTC marker and stores a timezone-naive wall-clock value;
+    Snowflake then resolves any later NTZ-vs-TZ comparison (exactly what
+    dbt's microbatch strategy does for its batch boundaries) using the
+    *session's* TIMEZONE parameter, not UTC. Confirmed directly this
+    silently drops/misclassifies rows near a UTC day boundary whenever the
+    session timezone isn't UTC (this project's Snowflake session defaults
+    to America/Los_Angeles). TIMESTAMP_TZ preserves the 'Z' as an explicit
+    UTC offset, so every later comparison is unambiguous.
+
     event_id / session_id / event_type / customer_id stay on a plain
     ::varchar cast -- a VARIANT always has a string representation, so
     there is no failure mode for TRY_CAST to guard against there.
@@ -33,9 +46,9 @@
 select
     event_data as raw_event_data,
     event_data:event_id::varchar as event_id,
-    try_cast(event_data:event_timestamp::varchar as timestamp_ntz) as event_timestamp,
+    try_cast(event_data:event_timestamp::varchar as timestamp_tz) as event_timestamp,
     try_cast(event_data:event_date::varchar as date) as event_date,
-    try_cast(event_data:ingested_at::varchar as timestamp_ntz) as ingested_at,
+    try_cast(event_data:ingested_at::varchar as timestamp_tz) as ingested_at,
     event_data:session_id::varchar as session_id,
     event_data:event_type::varchar as event_type,
     coalesce(event_data:user_id::varchar, event_data:customer_global_id::varchar) as customer_id,
