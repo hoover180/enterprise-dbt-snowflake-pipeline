@@ -587,7 +587,7 @@ All four numbers below were confirmed twice -- once against the local `data/CLIC
 | Normalized exact-match rate (of 140 captured, after lowercase+trim) | 112 | 80.0% |
 | **Residual requiring genuine heuristic resolution** | **28** | **20.0%** |
 
-The critical result is the last row: 28 events, spanning 28 distinct customers, that no amount of case-folding or whitespace-trimming resolves -- an actual fuzzy-matching problem (bounded single-character-edit typos against a 350-person candidate pool) for Phase 5A's identity-resolution model to solve, not zero, and not a token handful of edge cases either. Before this fix, the equivalent residual was 0: the raw exact-match rate was 100% on every one of 1,000 events, because the "identity signal" was a direct copy of the join key. Phase 5A now has a real problem to solve.
+The critical result is the last row: 28 events, spanning 28 distinct customers, that no amount of case-folding or whitespace-trimming resolves -- an actual fuzzy-matching problem (bounded single-character-edit typos against a 350-person candidate pool) for Phase 5A's identity-resolution model to solve, not zero, and not just a couple of edge cases either. Before this fix, the equivalent residual was 0: the raw exact-match rate was 100% on every one of 1,000 events, because the "identity signal" was a direct copy of the join key. Phase 5A now has a real problem to solve.
 
 ### Consequences
 
