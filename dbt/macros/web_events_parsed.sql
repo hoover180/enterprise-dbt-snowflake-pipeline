@@ -6,12 +6,17 @@
     extracted with colon syntax (event_data:field::type); there is nothing
     to FLATTEN since each raw row is already one event.
 
-    user_id / customer_global_id is a mid-year schema drift (cutoff
-    2025-07-01) confirmed directly against DEV_ANALYTICS.RAW.RAW_WEB_EVENTS:
-    503 rows carry user_id, 547 carry customer_global_id, with zero rows
-    carrying both or neither. The two are coalesced into a single
-    customer_id column here rather than exposed as two columns -- see
-    ADR-004 in docs/data_modeling_decisions.md for why.
+    user_email / customer_global_email is a mid-year schema drift (cutoff
+    2025-07-01, same cutoff as the original user_id/customer_global_id
+    naming -- only the field names and the content they carry changed, see
+    ADR-008 in docs/data_modeling_decisions.md). Unlike the original ID
+    fields, these are legitimately absent on most rows: a real web pixel
+    only captures a customer identity signal for a minority of traffic
+    (event-type-dependent capture rate -- see
+    docs/synthetic_data_spec.md), so the two are coalesced into a single,
+    nullable customer_email column here rather than exposed as two columns
+    -- same coalesce pattern ADR-004 established, now carrying a sparse,
+    imperfect email signal instead of an always-present exact key.
 
     event_timestamp / event_date / ingested_at / quantity use TRY_CAST
     rather than a plain ::type cast. Confirmed directly (not assumed): a
@@ -39,9 +44,11 @@
     to America/Los_Angeles). TIMESTAMP_TZ preserves the 'Z' as an explicit
     UTC offset, so every later comparison is unambiguous.
 
-    event_id / session_id / event_type / customer_id stay on a plain
+    event_id / session_id / event_type / customer_email stay on a plain
     ::varchar cast -- a VARIANT always has a string representation, so
-    there is no failure mode for TRY_CAST to guard against there.
+    there is no failure mode for TRY_CAST to guard against there. A missing
+    key (the common case for customer_email -- see above) extracts to
+    VARIANT NULL, which ::varchar carries through as NULL, not an error.
 #}
 select
     event_data as raw_event_data,
@@ -51,7 +58,7 @@ select
     try_cast(event_data:ingested_at::varchar as timestamp_tz) as ingested_at,
     event_data:session_id::varchar as session_id,
     event_data:event_type::varchar as event_type,
-    coalesce(event_data:user_id::varchar, event_data:customer_global_id::varchar) as customer_id,
+    coalesce(event_data:user_email::varchar, event_data:customer_global_email::varchar) as customer_email,
     event_data:page_url::varchar as page_url,
     event_data:product_id::varchar as product_id,
     try_cast(event_data:quantity::varchar as number) as quantity,

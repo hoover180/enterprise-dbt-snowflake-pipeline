@@ -42,7 +42,7 @@ select
     ingested_at,
     session_id,
     event_type,
-    customer_id,
+    customer_email,
     page_url,
     product_id,
     quantity,
