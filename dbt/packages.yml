@@ -1,0 +1,11 @@
+# dbt_utils version pinned to an exact release, matching this project's
+# existing pinning discipline (requirements.txt pins dbt-core==1.12.4 and
+# dbt-snowflake==1.12.0 exactly, not a range). 1.4.1 is dbt_utils' latest
+# release (2026-06-28, confirmed directly against the GitHub releases API,
+# not assumed from whatever `dbt deps`/pip would otherwise resolve) and its
+# own dbt_project.yml declares require-dbt-version: [">=1.3.0", "<3.0.0"],
+# which covers this project's pinned dbt-core 1.12.4. See ADR-007 in
+# docs/data_modeling_decisions.md.
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.4.1
