@@ -385,3 +385,107 @@ The var is a flat list (`["US", "USA", "United States", "u.s.a."]`), not a `vari
 - Any future model that joins CRM tickets to CRM customers (or resolves CRM identity against ERP in Phase 5) has a ready-made, tested signal for "this ticket's account reference doesn't resolve" without needing to re-derive the anti-join itself.
 - `.sqlfluff` needed no new configuration for this PR beyond what ADR-002 already established (`load_macros_from_path = dbt/macros`); the flat-list var design was chosen specifically so that stayed true, rather than adding a `sqlfluff:templater:jinja:context` override or a lint-only macro shim to work around a dict-shaped var.
 - Because the build plan's "soft-delete inference based on last-seen date" premise doesn't hold, `last_seen_date` is carried through `stg_crm__customers` unchanged and untested beyond `not_null` -- it remains available for a future model that has an actual documented reason to use it, but nothing in this PR treats it as a staleness signal.
+
+## ADR-007: Source database targeting, freshness thresholds, dbt_utils integration
+
+**Status:** Accepted (2026-09-11).
+**Phase:** Phase 3D (this PR). Follows Phases 3A/3B/3C (Issues #16/#17, #29/#31, #33) -- the 1:1 staging views themselves are unchanged here; this PR is cross-cutting hardening across all three sources' `_*__sources.yml` files plus one genuine staging-model improvement found while investigating.
+
+### Context: the `database: DEV_ANALYTICS` bug
+
+A peer review flagged that `dbt/models/staging/{erp,web,crm}/_*__sources.yml` all hardcoded `database: DEV_ANALYTICS` at the source level. This directly contradicts `docs/workflow.md`'s Environment Promotion section: a STAGE/PROD run (once Phase 8 auto-deploy exists) would still read `DEV_ANALYTICS.RAW.*` regardless of which environment it actually ran against, silently defeating the entire promotion story -- STAGE and PROD would never see their own raw data, they'd just re-read DEV's.
+
+### Decision: omit `database:` entirely, don't template it
+
+Checked directly against the installed dbt-core 1.12.4 parser source (`dbt/parser/sources.py:155-159`) rather than assumed from docs -- the docs themselves are ambiguous here (fetched both `docs/build/sources` and `reference/source-properties`; neither states the omitted-`database` default plainly):
+
+```python
+default_database = self.root_project.credentials.database
+...
+database=(source.database or default_database),
+```
+
+Omitting `database:` from a source resolves it to `target.database` -- the exact per-environment value this project needs (`DEV_ANALYTICS`/`STAGE_ANALYTICS`/`PROD_ANALYTICS`, per `docs/dbt_profile_setup.md` and `terraform/databases.tf`). All three `_*__sources.yml` files now omit the key rather than writing `database: "{{ target.database }}"` -- both resolve identically, but the explicit Jinja is redundant given the confirmed default, and omission is the more idiomatic (per current dbt-core 1.12 behavior) expression of the same intent, consistent with this project's own precedent (ADR-003) of preferring the documented current pattern over a familiar-but-unnecessary one.
+
+**Verified against the actual compiled/resolved relation, not just the YAML.** A temporary `stage` output was added to `~/.dbt/profiles.yml` (`database: STAGE_ANALYTICS` -- a real database, provisioned by Terraform in Phase 2 per `terraform/databases.tf`, just with no `RAW` tables loaded into it yet) and removed again after verification; it is not committed anywhere. `dbt compile --target stage` produced:
+
+```text
+from STAGE_ANALYTICS.RAW.US_ORDERS
+from STAGE_ANALYTICS.RAW.EU_ORDERS
+from STAGE_ANALYTICS.RAW.CRM_CUSTOMERS
+from STAGE_ANALYTICS.RAW.RAW_WEB_EVENTS
+```
+
+against the same models that compile to `DEV_ANALYTICS.RAW.*` under the normal `dev` target -- direct proof the fix changes the resolved database per target, not just that the YAML looks right. A repo-wide grep afterward confirms no `database:` key anywhere in the three source files still names `DEV_ANALYTICS`; the one remaining textual match is this ADR's own prose describing the bug, and each source file's description prose explaining the fix.
+
+### Decision: freshness thresholds and the column each is keyed on
+
+Freshness needed a real ingestion-recency signal per source, not a business timestamp used merely because it exists. Checked what each source actually has, against `docs/loading_notes.md`'s documented raw table shapes:
+
+- **ERP (`us_orders`/`eu_orders`) and CRM (`crm_customers`/`crm_tickets`) have no per-row ingestion timestamp column at all** -- only business dates (`order_date`/`placed_on`, `created_date`/`last_seen_date`). Using one of those would answer "when did this order/account happen," not "is this table's data current" -- the wrong question, and exactly the mistake this task was scoped to avoid.
+- **Web (`raw_web_events`) already has one**: `ingested_at`, explicitly distinguished from `event_timestamp` since ADR-004/ADR-005 (`event_timestamp` = when the click happened; `ingested_at` = when the pipeline received it, 2-4 days later for ~2% of events by design).
+
+For ERP/CRM, the fix is Snowflake's warehouse-metadata freshness method (`loaded_at_field` omitted), not a fabricated `loaded_at` column. Confirmed directly against the installed packages, not assumed from a web search that returned inconsistent claims about which dbt version/edition supports this:
+
+- `dbt/task/freshness.py` falls back to `self.adapter.supports(Capability.TableLastModifiedMetadata)` when no `loaded_at_field`/`loaded_at_query` is configured, calling `adapter.calculate_freshness_from_metadata(...)`.
+- `dbt/adapters/snowflake/impl.py`'s `_capabilities` dict declares `Capability.TableLastModifiedMetadata: CapabilitySupport(support=Support.Full)` -- full, real support in dbt-snowflake 1.12.0, present since dbt-core 1.7, not a Fusion/"v2"-only feature as some search results implied.
+- This mechanism uses Snowflake's `LAST_ALTERED` table metadata. `data_gen/load_raw.py` does a full `CREATE OR REPLACE TABLE` on every run (`docs/loading_notes.md`), so `LAST_ALTERED` exactly equals the last load time for these tables -- an honest ingestion-recency signal with no dedicated column needed.
+
+For web, `loaded_at_field: event_data:ingested_at::timestamp_tz` -- confirmed dbt's `loaded_at_field` accepts an arbitrary SQL expression, not only a bare column name, so the VARIANT extraction can be inlined directly, matching `web_events_parsed()`'s own cast rather than inventing a second one.
+
+**Thresholds:** `warn_after: 24 hours`, `error_after: 48 hours`, uniformly across all three sources. No real refresh SLA is documented anywhere in this project for this synthetic batch loader, so a single nightly-batch-cadence assumption (missed one cycle = warn, missed two = error) is used everywhere rather than inventing three different, equally-unfounded SLAs. Deliberately **not** padded to account for web's known ~2% late-arrival population (2-4 day lag, ADR-004/005): that lag describes an individual row's `ingested_at` relative to its own `event_timestamp`, not how recent the table's *most recently ingested* row is -- which is what a `max(loaded_at_field)`-based freshness check actually measures, and in a genuinely live pipeline would track close to "now" regardless of any one row's lateness.
+
+**Verified end-to-end against real data, not just configured.** `dbt source freshness` run for real against `DEV_ANALYTICS`:
+
+```text
+Pulling freshness from warehouse metadata tables for 4 sources
+4 of 5 WARN freshness of erp.us_orders
+1 of 5 WARN freshness of crm.crm_customers
+3 of 5 WARN freshness of erp.eu_orders
+2 of 5 WARN freshness of crm.crm_tickets
+5 of 5 ERROR STALE freshness of web.raw_web_events
+```
+
+`target/sources.json` confirms this makes sense against the raw tables' actual timestamps: `erp.us_orders`/`eu_orders` and `crm.crm_customers`/`crm_tickets` all show `max_loaded_at` ~25-26 hours before the check ran (these tables were reloaded the same day as this PR's prior commit, `e256d43`'s date-determinism fix verification) -- correctly landing in the WARN band (24-48h). `web.raw_web_events` shows `max_loaded_at = 2025-12-31T20:07:20Z`, ~254 days before the check ran -- correctly ERROR (past 48h) by a huge margin.
+
+**Known, deliberate consequence, documented rather than hidden or gamed:** `data_gen/clickstream.py` pins `ingested_at` to a fixed 2025 window (`EVENT_START`/`EVENT_END`), matching `erp.py`/`crm.py`'s own `AS_OF_DATE` determinism fix (this PR's immediately preceding commit, `e256d43`). Because that embedded timestamp never advances toward "now" on its own, `dbt source freshness` against `raw_web_events` will report ERROR under real wall-clock time indefinitely, regardless of how recently `data_gen/load_raw.py` was actually last run. This was not fixed by inflating `error_after` until the status went green -- that would hide a real, informative signal (this data has not been refreshed against wall-clock reality) behind a threshold chosen to avoid a red status, which is backwards. `LAST_ALTERED`-based ERP/CRM freshness has no equivalent problem, since it measures the table object's real modification time, not a value frozen inside the synthetic rows.
+
+### Decision: dbt_utils, version selection
+
+Checked the current release directly against GitHub's releases API (`api.github.com/repos/dbt-labs/dbt-utils/releases`) rather than assuming whatever `dbt deps`/the dbt Hub UI would resolve as latest: **1.4.1**, published 2026-06-28. Its own `dbt_project.yml` declares `require-dbt-version: [">=1.3.0", "<3.0.0"]`, which covers this project's pinned `dbt-core==1.12.4`. Pinned to the exact version (`packages.yml`: `version: 1.4.1`), matching `requirements.txt`'s existing exact-pin convention for `dbt-core`/`dbt-snowflake` rather than a range. `dbt deps` succeeded (`dbt/package-lock.yml`, sha1 `8b27037b26f3f630c6661194d2470e720c49f6ee`).
+
+### Decision: `generate_surrogate_key()` replaces manual key concatenation
+
+`stg_erp__order_items.order_item_key` and `stg_erp__orders.order_key` were both manual `||`-concatenation composite keys -- `region || '-' || source_order_id || '-' || source_line_item_id::varchar` and `region || '-' || order_id` respectively (ADR-002). This is exactly `dbt_utils.generate_surrogate_key()`'s purpose, and a genuine two-model reuse case within the same source (not a single call site dressed up as a "pattern"). Both were replaced:
+
+```sql
+{{ dbt_utils.generate_surrogate_key(['region', 'source_order_id', 'source_line_item_id']) }}
+    as order_item_key
+```
+
+**Why this is a real fit, not a forced one:** grepped the whole repo for `order_item_key`/`order_key` before changing anything -- both are only ever consumed via `unique`/`not_null` schema tests, and `erp_orders_status_snapshot`'s own `unique_key: [region, order_id]` config uses the raw columns directly, not the derived key column at all (ADR-003 already noted this). Nothing anywhere parses the literal delimited-string format, so switching it to an md5 hash breaks nothing. It's also a strict correctness improvement, not just a style change: `generate_surrogate_key()` coalesces each field to a distinct null sentinel (`_dbt_utils_surrogate_key_null_`) before concatenating, so a future nullable field wouldn't silently collapse the whole key to `NULL` the way `a || b` does today. Current data has no nulls in these fields (ADR-002 confirmed this directly), so the manual version isn't *currently* wrong -- but it offered no protection if that ever changed, and the replacement costs nothing to get for free.
+
+**What was considered and rejected as a dbt_utils fit:** `erp_convert_to_usd()`/`crm_standardize_country()` (var-driven `CASE` mappings with no dbt_utils equivalent -- genuinely source-specific business logic) and `erp_quarantine_reason()`/`web_quarantine_reason()` (multi-condition validation `CASE` statements with a reason string per branch -- dbt_utils ships generic single-condition test macros, not this OR'd-conditions-with-a-label shape; forcing it would trade two clear, source-specific statements for a harder-to-follow generic one, achieving nothing). Neither was forced into a dbt_utils macro.
+
+**sqlfluff needed a real fix, not just a re-lint.** `sqlfluff lint` initially failed on the new call sites: `TMP | Undefined jinja template variable: 'dbt_utils'`, cascading into parse errors on the rest of the line. sqlfluff's `jinja` templater (not the `dbt` templater -- ADR-002 already established why this project uses `jinja`) has no concept of an installed dbt package; `apply_dbt_builtins` mocks `ref()`/`source()`/`var()`/etc. individually, but a package-namespaced macro call is just an undefined name to it. Fixed via `.sqlfluff_libs/dbt_utils.py`, a lint-only Python stub (`generate_surrogate_key()` returns a harmless placeholder string literal) exposed through sqlfluff's own `library_path` config option (`.sqlfluff`) -- confirmed this is a real, documented sqlfluff mechanism (`_extract_libraries_from_config` in `sqlfluff/core/templaters/jinja.py`: every top-level module under `library_path` is imported and exposed in the Jinja context by its filename), not an invented workaround. After the fix: `sqlfluff lint dbt/models dbt/macros dbt/snapshots dbt/tests` passes clean, and `dbt run`/`dbt test` both passed for real against `DEV_ANALYTICS` (8/8 models, 64/64 tests -- including fresh `unique`/`not_null` passes on both surrogate-key columns under their new hashed values).
+
+### Decision: no additional custom macro
+
+Investigated whether a second custom macro (beyond `generate_surrogate_key`) has genuine cross-source reuse value. It doesn't, and none was added:
+
+- **Unifying `erp_quarantine_reason()`/`web_quarantine_reason()`** was considered and rejected. Their checks differ in kind, not just column names -- ERP's currency-support check has no web equivalent, web's per-field `TRY_CAST`-null check has no ERP equivalent (ERP's source columns are natively typed; web's are VARIANT-extracted). A shared abstraction over two structurally different validation rulesets would trade two clear, source-specific `CASE` statements for one harder-to-follow config-driven one, removing no real duplication. This mirrors ADR-006's own reasoning for keeping `crm_us_country_variants` a flat list instead of preemptively generalizing to a dict "in case" a future need arrives.
+- **Extracting the quarantine-table boilerplate** (`materialized='table'` + `current_timestamp() as quarantined_at` + a `quarantine_reason is not null` filter, repeated across `stg_erp__order_items_quarantine`/`stg_web__events_quarantine`) was considered and rejected. It's one line of real logic (`current_timestamp()`) surrounded by config and a column list that's different in every model -- not enough shared surface to justify a macro, and dbt has no clean way to macro-ize model-level config plus a divergent select list.
+
+No new macro exists in this PR beyond what dbt_utils already provides. This matches ADR-006's own precedent: don't build an abstraction the current model set doesn't actually need.
+
+### Deferred: no Tableau exposure
+
+No dbt `exposures:` entry is added for a Tableau dashboard. Per this project's own build plan, Tableau doesn't exist until Phase 10A -- defining an exposure now would document a downstream consumer that doesn't exist yet, which is worse than no exposure at all (a stale, aspirational entry a future reader might mistake for a real, live dependency). This is an explicit deferral to Phase 10A, recorded here so it isn't later mistaken for an oversight in this PR.
+
+### Consequences
+
+- STAGE/PROD runs (once Phase 8's auto-deploy exists) will read their own environment's raw tables, not DEV's -- the environment-promotion story in `docs/workflow.md` is no longer silently broken. Verified against a real compiled relation under a `stage`-targeted compile, not just inferred from the YAML.
+- `dbt source freshness` is a real, working check for all three sources today, not scaffolding for later -- run against real `DEV_ANALYTICS` data in this PR, with a result (ERP/CRM `WARN`, web `ERROR STALE`) that was independently verified against each raw table's actual `LAST_ALTERED`/`ingested_at` values, not just "the command exited."
+- Web's `raw_web_events` freshness will read `ERROR STALE` under real wall-clock time until either `data_gen/clickstream.py`'s fixed date window is regenerated relative to a current date, or a future PR decides the frozen-historical-data tradeoff needs a different freshness strategy for this one source. This is flagged here explicitly as expected, not a defect to chase.
+- `stg_erp__order_items.order_item_key` and `stg_erp__orders.order_key` are now md5 hashes, not readable delimited strings. No consumer anywhere depended on the old format (verified by grep before changing it); any future model reading these columns should treat them as opaque surrogate keys, same as before.
+- `dbt_utils` is now a project dependency (`packages.yml`, pinned `1.4.1`) and `.sqlfluff_libs/` exists as a place to add a lint-time stub for any future dbt_utils macro this project calls by namespace -- extend it there rather than reaching for `sqlfluff:templater:jinja:context` overrides.
