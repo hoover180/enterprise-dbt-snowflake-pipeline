@@ -1,10 +1,13 @@
 """Verify invariants of a generated clickstream extract.
 
-Checks two things `data_gen/clickstream.py` is expected to guarantee:
+Checks things `data_gen/clickstream.py` is expected to guarantee:
 
-1. Schema-drift cutoff: every event before `SCHEMA_CUTOFF` carries `user_id`
-   (and not `customer_global_id`), every event on/after it carries
-   `customer_global_id` (and not `user_id`).
+1. Schema-drift cutoff: no event carries both `user_email` and
+   `customer_global_email`; an event carrying `user_email` is always dated
+   before `SCHEMA_CUTOFF`, and an event carrying `customer_global_email` is
+   always dated on/after it. Most events carry neither (identity capture is
+   sparse -- see docs/synthetic_data_spec.md) -- that is expected, not a
+   violation.
 2. Late-arrival modeling: `event_date`/`event_timestamp` always reflect the
    true, unshifted occurrence time, and late arrival is represented solely by
    `ingested_at` landing `LATE_MIN_DAYS`-`LATE_MAX_DAYS` days after
@@ -51,21 +54,32 @@ def parse_timestamp(value: str) -> datetime:
     return datetime.fromisoformat(value.removesuffix("Z"))
 
 
-def check_schema_cutoff(events: list[dict[str, Any]]) -> list[str]:
-    """Return one message per event that violates the user_id/customer_global_id cutoff."""
+def check_schema_cutoff(events: list[dict[str, Any]]) -> tuple[list[str], int]:
+    """Return (violation messages, count of events carrying an identity field).
+
+    Identity capture is sparse and event-type-dependent (see
+    docs/synthetic_data_spec.md) -- most events carry neither field, and
+    that's expected, not a violation. Only events that DO carry a field are
+    checked against the cutoff.
+    """
     violations = []
+    captured_count = 0
     for event in events:
         event_date = date.fromisoformat(event["event_date"])
-        has_user_id = "user_id" in event
-        has_global_id = "customer_global_id" in event
-        expect_user_id = event_date < SCHEMA_CUTOFF
-        if has_user_id == has_global_id:
-            violations.append(f"{event['event_id']}: expected exactly one of user_id/customer_global_id")
-        elif expect_user_id and not has_user_id:
-            violations.append(f"{event['event_id']}: event_date {event_date} < cutoff but missing user_id")
-        elif not expect_user_id and not has_global_id:
-            violations.append(f"{event['event_id']}: event_date {event_date} >= cutoff but missing customer_global_id")
-    return violations
+        has_user_email = "user_email" in event
+        has_global_email = "customer_global_email" in event
+        if has_user_email and has_global_email:
+            violations.append(f"{event['event_id']}: carries both user_email and customer_global_email")
+            continue
+        if has_user_email:
+            captured_count += 1
+            if event_date >= SCHEMA_CUTOFF:
+                violations.append(f"{event['event_id']}: event_date {event_date} >= cutoff but carries user_email")
+        elif has_global_email:
+            captured_count += 1
+            if event_date < SCHEMA_CUTOFF:
+                violations.append(f"{event['event_id']}: event_date {event_date} < cutoff but carries customer_global_email")
+    return violations, captured_count
 
 
 def check_late_arrival(events: list[dict[str, Any]]) -> tuple[list[str], int, int]:
@@ -104,10 +118,11 @@ def main() -> int:
     args = parse_args()
     events = load_events(args.file)
 
-    cutoff_violations = check_schema_cutoff(events)
+    cutoff_violations, captured_count = check_schema_cutoff(events)
     late_arrival_violations, late_count, on_time_count = check_late_arrival(events)
 
     print(f"Checked {len(events)} records from {args.file}")
+    print(f"Events carrying an identity field: {captured_count} ({captured_count / len(events):.1%})")
     print(f"Schema-cutoff violations: {len(cutoff_violations)}")
     print(f"Late events: {late_count}, on-time events: {on_time_count}")
     print(f"Late-arrival / timestamp-shift violations: {len(late_arrival_violations)}")

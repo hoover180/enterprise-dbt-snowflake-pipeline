@@ -122,16 +122,22 @@ One column holding the entire event object, matching how a real landing
 zone holds semi-structured data before staging models parse it — this
 table is deliberately schema-less at the raw layer. Every field described
 in `docs/synthetic_data_spec.md`'s clickstream section (`event_id`,
-`event_type`, `event_timestamp`, the `user_id`/`customer_global_id` schema
-drift, etc.) lives inside `event_data` and must be extracted with
+`event_type`, `event_timestamp`, the `user_email`/`customer_global_email`
+schema drift, etc.) lives inside `event_data` and must be extracted with
 `event_data:field_name` (or `::type` casts) in the staging model — nothing
 is flattened at load time.
 
 ## Not the staging layer's job here
 
 This loader does not deduplicate the ~5% pixel-retry duplicate events,
-resolve the `user_id`/`customer_global_id` naming drift, normalize CRM's
-inconsistent `country` values, or reconcile ERP's regional column-naming
-drift. All of that is staging-model logic (Phase 3) that operates on these
-raw tables — the loader's only job is getting the source files into
-Snowflake unmodified.
+resolve the `user_email`/`customer_global_email` naming drift, normalize
+CRM's inconsistent `country` values, or reconcile ERP's regional
+column-naming drift. All of that is staging-model logic (Phase 3) that
+operates on these raw tables — the loader's only job is getting the source
+files into Snowflake unmodified.
+
+`data_gen/load_raw.py --table RAW_WEB_EVENTS` reloads only the web source
+table (repeatable `--table` flag) without touching `US_ORDERS`/`EU_ORDERS`/
+`CRM_CUSTOMERS`/`CRM_TICKETS` — useful when only `data/CLICKSTREAM_EVENTS.json`
+was regenerated and the other three sources' fixed `AS_OF_DATE` windows are
+untouched.

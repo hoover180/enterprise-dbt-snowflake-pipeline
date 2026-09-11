@@ -128,6 +128,17 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_DATA_DIR,
         help="Directory containing the source extracts (default: repo-root data/).",
     )
+    parser.add_argument(
+        "--table",
+        action="append",
+        dest="tables",
+        choices=[spec.table for spec in [*CSV_SOURCES, JSON_SOURCE]],
+        help=(
+            "Load only this table (repeatable). Default: load every source table. "
+            "Use e.g. --table RAW_WEB_EVENTS to reload a single source without "
+            "touching the others."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -224,7 +235,9 @@ def main() -> None:
         ensure_schema(cursor, schema)
         ensure_stage(cursor, database, schema)
 
-        for spec in [*CSV_SOURCES, JSON_SOURCE]:
+        all_specs = [*CSV_SOURCES, JSON_SOURCE]
+        specs = [spec for spec in all_specs if spec.table in args.tables] if args.tables else all_specs
+        for spec in specs:
             load_table(cursor, database, schema, args.data_dir, spec)
 
         print("Done.")
