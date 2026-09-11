@@ -1,3 +1,10 @@
+-- event_time is purely metadata for this view -- it does not change its
+-- materialization or behavior. It lets int_web_events_incremental (Phase
+-- 3B, ADR-005) auto-filter this ref by event_timestamp per microbatch, per
+-- current dbt-core docs: "Set the event_time column for your microbatch
+-- model and its direct parents."
+{{ config(event_time='event_timestamp') }}
+
 with parsed as (
 
     {{ web_events_parsed() }}

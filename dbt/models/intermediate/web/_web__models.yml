@@ -1,0 +1,66 @@
+version: 2
+
+models:
+  - name: int_web_events_incremental
+    description: >
+      Incrementally-materialized, event-grain pass-through of
+      stg_web__events (Phase 3B, ADR-005 in docs/data_modeling_decisions.md).
+      Uses dbt-core 1.12's microbatch incremental strategy, batched daily on
+      event_timestamp, with a 3-batch lookback so events whose ingested_at
+      lands up to a few days after event_timestamp (docs/synthetic_data_spec.md,
+      "Late-arriving events") are picked up by a later run's reprocessed
+      trailing window instead of requiring a full rebuild. Overrides this
+      project's intermediate-layer ephemeral default (dbt_project.yml) --
+      an incremental model must be a persisted table.
+    columns:
+      - name: event_id
+        description: >
+          Business key at event grain (see ADR-004). Declared as this
+          model's unique_key config for documentation purposes, though
+          Snowflake's microbatch execution deletes/reinserts by
+          event_timestamp batch window, not by unique_key match --
+          duplicate-safety comes from event_timestamp being immutable per
+          event_id, not from a merge-on-key step. See ADR-005.
+        data_tests:
+          - unique
+          - not_null
+      - name: event_timestamp
+        description: >
+          True, unshifted occurrence time of the event (TIMESTAMP_TZ --
+          see ADR-005 for why this must not be TIMESTAMP_NTZ). This
+          model's configured event_time column -- defines the daily batch
+          a given event permanently belongs to, and therefore never
+          changes which batch a late-arriving event's eventual
+          reprocessing will land in.
+        data_tests:
+          - not_null
+      - name: event_date
+        data_tests:
+          - not_null
+      - name: ingested_at
+        description: >
+          Pipeline ingestion time. Not used for batching (event_timestamp
+          is) -- the gap between this and event_timestamp is exactly what
+          the lookback window is sized to absorb. See ADR-005.
+        data_tests:
+          - not_null
+      - name: session_id
+        data_tests:
+          - not_null
+      - name: event_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["page_view", "cart_addition", "search_query"]
+      - name: customer_id
+        data_tests:
+          - not_null
+      - name: page_url
+        description: Populated for event_type = page_view; null otherwise.
+      - name: product_id
+        description: Populated for event_type = cart_addition; null otherwise.
+      - name: quantity
+        description: Populated for event_type = cart_addition; null otherwise.
+      - name: search_query
+        description: Populated for event_type = search_query; null otherwise.

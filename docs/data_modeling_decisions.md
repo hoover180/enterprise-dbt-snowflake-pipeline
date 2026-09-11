@@ -160,7 +160,7 @@ After the manual `UPDATE` (11 line-item rows affected per shard, matching those 
 
 ## ADR-004: Web clickstream staging — VARIANT parsing, customer-key coalesce, pixel-retry dedup
 
-**Status:** Accepted (2026-09-10).
+**Status:** Accepted (2026-09-10); amended 2026-09-10 (see ADR-005) to cast `event_timestamp`/`ingested_at` to `TIMESTAMP_TZ` instead of `TIMESTAMP_NTZ` -- the original `TIMESTAMP_NTZ` choice silently dropped the source's UTC marker and caused incorrect results once a UTC-boundary-comparing consumer (ADR-005's microbatch model) was built on top of this model.
 **Phase:** Phase 3B (this PR — clickstream staging). The incremental model, 3-day look-back window, and backfill/replay demonstration described in `docs/synthetic_data_spec.md`'s late-arriving-events section are explicitly out of scope here and land in a separate, later PR.
 
 ### Context
@@ -184,7 +184,7 @@ select parse_json('{"x": "not-a-date"}'):x::date as bad;
 -- 100071 (22000): Failed to cast variant value "not-a-date" to DATE
 ```
 
-Since the whole point of routing "VARIANT parsing failures" to quarantine is to keep one bad event from taking down the build, a plain `::type` cast on `event_timestamp`/`event_date`/`ingested_at`/`quantity` would have defeated the mechanism the first time a malformed event appeared — the model would fail to compile at all rather than quarantine the one bad row. `web_events_parsed()` uses `try_cast(event_data:field::varchar as <type>)` for these four fields instead, which yields `NULL` on an unparseable value (confirmed with the same literal: `try_cast(parse_json('{"x":"not-a-date"}'):x::varchar as date)` returns `NULL`, no error). `event_id`/`session_id`/`event_type`/`customer_id` stay on a plain `::varchar` cast — a VARIANT always has a string representation, so there's no failure mode there for `TRY_CAST` to guard against.
+Since the whole point of routing "VARIANT parsing failures" to quarantine is to keep one bad event from taking down the build, a plain `::type` cast on `event_timestamp`/`event_date`/`ingested_at`/`quantity` would have defeated the mechanism the first time a malformed event appeared — the model would fail to compile at all rather than quarantine the one bad row. `web_events_parsed()` uses `try_cast(event_data:field::varchar as <type>)` for these four fields instead, which yields `NULL` on an unparseable value (confirmed with the same literal: `try_cast(parse_json('{"x":"not-a-date"}'):x::varchar as date)` returns `NULL`, no error). (`event_timestamp`/`ingested_at`'s target `<type>` was later corrected from `TIMESTAMP_NTZ` to `TIMESTAMP_TZ` — amended 2026-09-10, see ADR-005.) `event_id`/`session_id`/`event_type`/`customer_id` stay on a plain `::varchar` cast — a VARIANT always has a string representation, so there's no failure mode there for `TRY_CAST` to guard against.
 
 ### Decision: coalesce `user_id`/`customer_global_id` into `customer_id`, not a schema-versioned dual column
 
@@ -218,3 +218,122 @@ Type-specific fields (`page_url`, `product_id`, `quantity`, `search_query`) are 
 - `event_id` carries `unique`/`not_null` tests on `stg_web__events` and passes against the deduplicated data; this is the model's actual grain guarantee, not a row-count assumption.
 - `web_events_parsed()`'s `TRY_CAST` usage is the reusable pattern for any future VARIANT-sourced staging model in this project — a plain `::type` cast is only safe on a VARIANT field once you're certain (checked, not assumed) that the source never produces a value that fails to convert.
 - `web_quarantine_reason()` is called from both staging models as `{{ web_quarantine_reason() | trim | indent(8) }}` at its multi-line (`case...end`) call site, so the compiled SQL is actually indented to match its surroundings — verified directly against `target/compiled/`, not assumed from the source. `indent()` alone was insufficient: the macro's own leading/trailing newlines (from `{% macro %}`/`{% endmacro %}` each sitting on their own line) made Jinja's filter treat an empty string as "line 1" and therefore skip indenting it, which left `when`/`end` one indent level short of the `case` line's own indent. `trim` first removes those newlines so `indent()`'s width lines up with the call site's actual 8-space indent. This project has a known, confirmed gap where `erp_quarantine_reason()`/`erp_convert_to_usd()` are called with no `indent()` at all and compile with `case`/`end` sitting at column 0 inside an indented `select` — left as-is there (Issue #16/#17 are closed), but not repeated in this PR's new macro.
+
+## ADR-005: Web clickstream incremental model — microbatch strategy, 3-day lookback, backfill
+
+**Status:** Accepted (2026-09-10).
+**Phase:** Phase 3B, second half (Issue #31). Builds on `stg_web__events` (Issue #29, ADR-004) without changing its logic, aside from one type correction found during this work (see "Found and fixed" below).
+
+### Context
+
+Issue #29/ADR-004 deliberately deferred the incremental model, 3-day look-back window, and backfill/replay demonstration for late-arriving clickstream events. `docs/synthetic_data_spec.md` ("Late-arriving events") and `stg_web__events`'s own schema.yml already document that ~2% of canonical events have `ingested_at` landing 2-4 days after `event_timestamp`, "to support the Phase 3B backfill demonstration." Before writing any model, the real data was checked directly against `DEV_ANALYTICS.RAW.RAW_WEB_EVENTS` rather than assumed:
+
+- `event_date` ranges 2025-01-05 to 2025-12-31 (confirmed directly).
+- Exactly 20 real late-arriving events exist (`ingested_at` 2-4 days after `event_timestamp`), spread across the full year (roughly one every 2-3 weeks, not clustered at the start/end), with delays of 2, 3, or 4 days. This is a clean, illustrative sample of the exact "day-N-event-arrives-on-day-N+2" scenario the build plan describes — real data was used for the demonstration below, not a fabricated injection.
+- `event_id` is already confirmed canonical and durably unique for this model's grain: ADR-004 established 1,000 distinct `event_id` values from 1,050 raw rows (50 exact pixel-retry duplicates), and `stg_web__events.event_id` already carries passing `unique`/`not_null` schema tests. No new key derivation was needed.
+
+### Decision: `microbatch` incremental strategy, not hand-written `is_incremental()` + merge
+
+Checked directly against dbt-core 1.12.4 (installed) source and current docs, not assumed from familiarity with the older pattern:
+
+- `microbatch` is a core (adapter-independent) materialization strategy, introduced in dbt-core 1.9 and present unchanged in 1.12.4 (`dbt/materializations/incremental/microbatch.py` in the installed package). dbt-snowflake 1.12.0 executes it via a dedicated `delete+insert`-style strategy (`snowflake__get_incremental_microbatch_sql` in `dbt/include/snowflake/macros/materializations/incremental/merge.sql`) — this is real, current adapter support, not a strategy Snowflake merely tolerates.
+- For this specific use case — a time-series event stream, a fixed-size trailing lookback window sized to catch late arrivals, and an explicit historical backfill — `microbatch` is a better fit than hand-writing `is_incremental()` + `merge` + `unique_key`, for reasons specific to this problem rather than "newer is better":
+  1. **Lookback is a first-class config**, not a hand-rolled subquery. A manual approach would need something like `where event_timestamp >= (select dateadd('day', -3, max(event_timestamp)) from {{ this }})` inside an `is_incremental()` block — self-adjusting to the target's own watermark, but also a second, informal spec for "how far back do we look" that lives in SQL rather than in `dbt show`-able model config.
+  2. **Native backfill CLI**, not a custom `--vars`-driven date-range flag. `--event-time-start`/`--event-time-end` (below) is a documented, versioned dbt feature; a hand-written equivalent would need its own `{% if var(...) %}` scaffolding and its own documentation of what the var means.
+  3. **Delete+insert per batch window, not merge-on-key, is actually the better correctness property here.** A `merge` only *upserts* rows matching the query's current output — it can never remove a row that legitimately disappeared from a batch's result set (e.g. a row that was quarantined after initially passing). `microbatch`'s Snowflake execution deletes the *entire* target window for a batch and reinserts the query's current result for that exact window, so a reprocessed batch always reflects a full, correct recomputation of that window, not an incremental patch on top of a possibly-stale one.
+  4. **Per-batch execution, logging, and retry.** Each batch is its own `START`/`OK` log line and its own unit of work for `dbt retry` (failed batches retry independently). A hand-written `merge` is one statement per invocation with no equivalent granularity.
+- The one real trade-off, noted for honesty rather than glossed over: a hand-written `max(event_timestamp)`-based watermark self-heals if a run is skipped for several days (the window automatically widens to cover the gap), whereas `microbatch`'s lookback is a fixed batch count relative to the run's own end time, regardless of how long since the last successful run. In production this is addressed by sizing `lookback` to the realistic maximum gap between runs, or by an explicit `--event-time-start`/`--event-time-end` catch-up (exactly the mechanism demonstrated below) — not a reason to prefer the manual approach for this use case.
+
+### Decision: materialization-default conflict, resolved via per-model config override
+
+`dbt_project.yml` sets `intermediate: +materialized: ephemeral` — intentional, per its own comment, because intermediate models in this project have no direct consumer and this project's schemas are already per-PR-ephemeral. An incremental model is fundamentally incompatible with `ephemeral` (there is no persisted relation for `is_incremental()`/microbatch to check or write to). `int_web_events_incremental.sql` (`dbt/models/intermediate/web/`) resolves this with a model-level `{{ config(materialized='incremental', ...) }}` block, which dbt always resolves with higher precedence than a project-level default — documented as a code comment directly above the config block in the model file, not only here.
+
+The model still lives under `models/intermediate/web/` (not a new top-level directory) because it is, conceptually, exactly what this project's intermediate layer is for — reshaping a staging model for consumption by a future marts-layer model — it just happens to need a persisted, incrementally-built table rather than an ephemeral CTE to do that reshaping correctly.
+
+### Found and fixed during implementation: `TIMESTAMP_NTZ` silently produced wrong results at a UTC day boundary
+
+The same discipline ADR-002 (missing GBP rate) and ADR-004 (TRY_CAST) applied — verify against real behavior, don't assume a cast is correct just because it compiles — caught a real bug in already-merged, closed work (ADR-004/Issue #29).
+
+`web_events_parsed()` originally cast `event_timestamp`/`ingested_at` to `TIMESTAMP_NTZ`. The source values are UTC ISO-8601 strings (`...Z` suffix). A full backfill run (`--event-time-start 2025-01-01 --event-time-end 2026-01-01`) was verified directly against `stg_web__events` afterward — 999 distinct `event_id` values landed in `int_web_events_incremental` against 1,000 in `stg_web__events`, a real discrepancy, not a passing "the run succeeded" check. An anti-join found the missing row: `event_id = 'fff099c5-a6ff-4252-a074-722270518f93'`, `event_timestamp = 2025-12-31 20:05:26`.
+
+Root cause, confirmed directly: dbt's microbatch execution always builds its batch-boundary predicates with `to_timestamp_tz(...)` (an explicit UTC offset). Comparing a `TIMESTAMP_NTZ` column against a `TIMESTAMP_TZ` literal forces Snowflake to promote the `TIMESTAMP_NTZ` value using the **session's `TIMEZONE` parameter** — confirmed via `show parameters like 'TIMEZONE' in session`, this project's Snowflake session defaults to `America/Los_Angeles` (UTC-8 in December), not UTC. A `TIMESTAMP_NTZ` value of `2025-12-31 20:05:26`, promoted as if it were `2025-12-31 20:05:26-08:00`, is `2026-01-01 04:05:26` UTC — 8 hours later than its true UTC instant, and past the backfill's `2026-01-01` upper boundary. Reproduced directly with a synthetic literal:
+
+```sql
+select
+  try_cast('2025-12-31T20:05:26Z' as timestamp_tz) < to_timestamp_tz('2026-01-01 00:00:00+00:00')  -- true
+;
+-- vs. the NTZ column's actual promoted comparison in this session's timezone:
+-- select '2025-12-31 20:05:26'::timestamp_ntz < to_timestamp_tz('2026-01-01 00:00:00+00:00')  -- false, off by the session's UTC offset
+```
+
+This is a genuine, general defect (not specific to the one dropped row): any `TIMESTAMP_NTZ` event whose true UTC instant falls in the last few hours of a UTC calendar day gets attributed to the *next* day's microbatch window instead of its own. For a batch in the middle of a contiguous backfill this only misattributes which batch's `INSERT` a row came through (the row's own stored column values are unaffected, and no duplicate is created); at the *outer edge* of any bounded run's date range, a misattributed row has nowhere to land and is silently dropped — exactly what happened to the one boundary row above.
+
+**Fix:** `web_events_parsed()` now casts both fields to `TIMESTAMP_TZ` (`dbt/macros/web_events_parsed.sql`), which preserves the source's explicit UTC offset through every later comparison, session timezone notwithstanding. `stg_web__events`/`stg_web__events_quarantine` were rebuilt and all 36 pre-existing schema/singular tests re-run and confirmed passing (no regression). ADR-004's status line is amended to point here. The full backfill (below) was then re-run from a clean table and verified to reconcile exactly against `stg_web__events` (1,000 = 1,000, zero duplicates).
+
+### Lookback semantics, precisely
+
+Confirmed directly against `dbt/materializations/incremental/microbatch.py` (`MicrobatchBuilder`), not assumed from the conceptual docs summary alone:
+
+- **Batch window is `[batch_start, batch_end)`** — inclusive start, exclusive end — at `batch_size` granularity (`day`, here). Confirmed both from `snowflake__get_incremental_microbatch_sql`'s generated predicates (`event_timestamp >= start and event_timestamp < end`) and from `MicrobatchBuilder.ceiling_timestamp`'s docstring.
+- **`lookback: 3` means "reprocess the batch containing the run's end time, plus the 3 calendar-day batches before it" — 4 batches touched per normal incremental run, not 3.** This is not an edge case: `build_start_time()`'s checkpoint is always `build_end_time()`'s return value, which is always already `batch_size`-aligned (a `ceiling_timestamp` result), so the `if checkpoint == truncate_timestamp(checkpoint, batch_size): lookback += 1` branch fires on every normal run. Reproduced directly: with `lookback=3`, `batch_size=day`, and end truncated to `2025-09-17 00:00:00`, `build_start_time` returns `2025-09-13 00:00:00` — 4 daily batches (`Sept 13, 14, 15, 16`), confirmed by both hand-tracing the source and by the actual `dbt run` log below (`Batch 1 of 4` … `Batch 4 of 4`).
+- **`--event-time-start`/`--event-time-end` bypass lookback entirely and are mutually required.** Passing an explicit start always wins over the lookback computation (`build_start_time` returns the explicit value before ever consulting `lookback`). Empirically confirmed: `dbt run --event-time-end "2025-09-17"` alone (no `--event-time-start`) fails fast with `DbtUsageException: The flag --event-time-end was specified, but --event-time-start was not.` This means there is no CLI-only way to trigger "a normal incremental run, lookback auto-computed" against historically-dated data without also fixing "now" to a real wall-clock instant — which for this project's fixed 2025 dataset (run in 2026) is never inside the data's range anyway. The demonstration below therefore passes `--event-time-start` explicitly, set to the exact value the lookback algorithm computes for the equivalent `--event-time-end` (shown above) — mechanically identical (same batches, same per-batch delete+insert SQL) to what an unattended scheduled run with `lookback: 3` would execute; only the origin of the `start` value (explicit flag vs. an internal computation) differs.
+
+### Demonstration: late-arrival absorption without a full rebuild
+
+All steps run against real data — one genuine late-arriving event (`event_id = 4548fea3-ce03-4d8f-8570-82590219db86`, `event_timestamp = 2025-09-13 01:12:44 UTC`, `ingested_at = 2025-09-16 01:12:44 UTC`, a 3-day delay) was temporarily removed from `DEV_ANALYTICS.RAW.RAW_WEB_EVENTS` and, after the initial run, reinserted byte-for-byte identical to simulate its real (delayed) arrival — mirroring ADR-003's precedent of a real, one-time manual DML operation against `RAW` to demonstrate a scenario the static synthetic dataset can't otherwise exhibit on its own (`RAW_WEB_EVENTS` is a fully-loaded, one-time extract, not a live trickling feed — there is no other way to make a row "not exist yet" and then "arrive"). This was confirmed with the user before running. No row's `event_id`, timestamps, or payload were altered — only its temporary presence/absence in `RAW`.
+
+1. **Baseline removal**, confirmed directly: `delete from RAW_WEB_EVENTS where event_id = '4548fea3-...'` → 1 row deleted; `RAW_WEB_EVENTS` count 1,050 → 1,049 (999 distinct `event_id`).
+2. **Initial run** (target relation does not exist yet — a cold start): `dbt run --select int_web_events_incremental --event-time-start "2025-09-01" --event-time-end "2025-09-16"`. Ran 15 daily batches, `Sept 1` through `Sept 15`. Verified directly: 45 total rows, 45 distinct `event_id` (matches `stg_web__events` for the same window exactly), late event absent (`count_if(event_id = '4548fea3-...') = 0`), `event_date = 2025-09-13` shows 3 rows (the 3 on-time events for that day, not 4).
+3. **Reinsertion**, confirmed directly: the identical JSON payload reinserted into `RAW_WEB_EVENTS` → count back to 1,050 (1,000 distinct `event_id`).
+4. **Second run**, exercising only the lookback window: `dbt run --select int_web_events_incremental --event-time-start "2025-09-13" --event-time-end "2025-09-17"`. Real log output:
+
+   ```text
+   Batch 1 of 4 START batch 2025-09-13 of RAW.int_web_events_incremental
+   Batch 1 of 4 OK created batch 2025-09-13 of RAW.int_web_events_incremental
+   Batch 2 of 4 START batch 2025-09-14 of RAW.int_web_events_incremental
+   Batch 3 of 4 START batch 2025-09-15 of RAW.int_web_events_incremental
+   Batch 2 of 4 OK created batch 2025-09-14 of RAW.int_web_events_incremental
+   Batch 3 of 4 OK created batch 2025-09-15 of RAW.int_web_events_incremental
+   Batch 4 of 4 START batch 2025-09-16 of RAW.int_web_events_incremental
+   Batch 4 of 4 OK created batch 2025-09-16 of RAW.int_web_events_incremental
+   ```
+
+   4 batches only — not a rebuild of all 15 previously-processed batches, let alone a full-history rebuild — confirming the lookback window itself, not a broader rebuild, is what's responsible for the result below.
+5. **Verification, direct queries, before vs. after:**
+   - Total rows: 45 → 49 (+4: the 1 late event on `Sept 13`, plus 3 new rows for `Sept 16`, a day the initial run's narrower range never touched at all — not +1 alone, and not evidence of duplication).
+   - Duplicate check (`group by event_id having count(*) > 1`): **0 rows**, both before and after.
+   - Late event present exactly once: `count_if(event_id = '4548fea3-...') = 1`.
+   - `event_date = 2025-09-13` now shows 4 rows (the 3 on-time events, unchanged, plus the late one) — matching `stg_web__events`'s own count for that date exactly.
+   - Rows with `event_date < 2025-09-13` (outside the reprocessed window): unchanged at 37, both before and after — direct proof the days outside the lookback window were untouched.
+   - **Effective event-time window processed by the second run:** `[2025-09-13 00:00:00 UTC, 2025-09-17 00:00:00 UTC)`, taken directly from the batch log above. The late event's `event_timestamp` (`2025-09-13 01:12:44 UTC`) falls inside the first batch of that window — within the configured lookback boundary, not merely inside a coincidentally-wide manual range.
+
+### Backfill procedure
+
+A full historical backfill was run against the complete confirmed data range (`2025-01-05` to `2025-12-31`), using dbt's documented backfill mechanism — `--event-time-start`/`--event-time-end` — not `--full-refresh` (the target relation was left in place from the steps above; `--full-refresh` was never invoked against this model in this demonstration):
+
+```text
+dbt run --select int_web_events_incremental --event-time-start "2025-01-01" --event-time-end "2026-01-01"
+```
+
+365 daily batches ran (`2025-01-01` through `2025-12-31`), all `OK`, `Completed successfully`, in 311 seconds wall-clock (Snowflake `TRANSFORM_XS`, 4 threads):
+
+```text
+Finished running 1 incremental model in 0 hours 5 minutes and 11.21 seconds (311.21s).
+Completed successfully
+Done. PASS=1 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=1
+```
+
+Verified directly afterward against `stg_web__events` (the canonical row count established in ADR-004): **1,000 rows in `int_web_events_incremental`, 1,000 distinct `event_id`, exactly matching `stg_web__events`'s 1,000 rows** — an anti-join (`stg_web__events` rows with no matching `event_id` in `int_web_events_incremental`) returns 0 rows, and the duplicate-check singular test's query (`group by event_id having count(*) > 1`) also returns 0 rows. `min(event_date)`/`max(event_date)` are `2025-01-05`/`2025-12-31`, matching the confirmed raw data range exactly. The previously-demonstrated late event remains present exactly once.
+
+### Tests
+
+- `unique`/`not_null` on `int_web_events_incremental.event_id`, plus `not_null` on every required field, mirroring `stg_web__events`'s own tests.
+- `assert_int_web_events_incremental_no_duplicate_event_id` (`dbt/tests/`), a singular test mirroring `assert_erp_orders_status_snapshot_single_open_version` from Issue #17: `group by event_id having count(*) > 1` must return zero rows. This is the same reprocessing-safety invariant demonstrated manually above, made a durable, automated regression check rather than a one-time verification.
+
+### Consequences
+
+- `int_web_events_incremental` reconciles exactly with `stg_web__events` (1,000 = 1,000 rows, 0 duplicates, 0 missing) after the full backfill — the model is a correct, complete materialization of the staging view's current data, not merely "the run didn't error."
+- The `TIMESTAMP_NTZ` → `TIMESTAMP_TZ` fix applies to every future consumer of `stg_web__events.event_timestamp`/`ingested_at`, not just this model — any future time-boundary comparison against these columns would have hit the same session-timezone-dependent bug. This is now closed for the whole project, not patched around locally in `int_web_events_incremental`.
+- `event_id` is declared as this model's `unique_key` for documentation/intent even though Snowflake's microbatch `delete+insert` execution doesn't use it operationally; the real duplicate-safety property is event_timestamp's immutability per event_id (ADR-004) plus the `unique`/`not_null` schema tests and the new singular test. A future adapter change (or a future model on an adapter that uses `merge` for microbatch, e.g. dbt-postgres) would need `unique_key` for correctness on that adapter — it's cheap to declare now and correct to rely on later.
+- Because dbt-core requires `--event-time-start`/`--event-time-end` together, there is no way to invoke "a normal scheduled incremental run" against this historically-dated dataset without either fixing wall-clock time or passing an explicit, lookback-equivalent start. Any future demo or CI job against this model should pass both flags explicitly (as done here) rather than relying on default "now"-based behavior, which would silently no-op against 2025-dated data run in any later year.
+- `stg_web__events`'s `event_time` config (`event_timestamp`) is purely additive metadata for this microbatch consumer; `stg_web__events` itself is unchanged in materialization or row output (still a view, still 1,000 rows, still passing all of ADR-004's original tests).
