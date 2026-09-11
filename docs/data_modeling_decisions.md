@@ -160,7 +160,7 @@ After the manual `UPDATE` (11 line-item rows affected per shard, matching those 
 
 ## ADR-004: Web clickstream staging — VARIANT parsing, customer-key coalesce, pixel-retry dedup
 
-**Status:** Accepted (2026-09-10); amended 2026-09-10 (see ADR-005) to cast `event_timestamp`/`ingested_at` to `TIMESTAMP_TZ` instead of `TIMESTAMP_NTZ` -- the original `TIMESTAMP_NTZ` choice silently dropped the source's UTC marker and caused incorrect results once a UTC-boundary-comparing consumer (ADR-005's microbatch model) was built on top of this model.
+**Status:** Accepted (2026-09-10); amended 2026-09-10 (see ADR-005) to cast `event_timestamp`/`ingested_at` to `TIMESTAMP_TZ` instead of `TIMESTAMP_NTZ` -- the original `TIMESTAMP_NTZ` choice silently dropped the source's UTC marker and caused incorrect results once a UTC-boundary-comparing consumer (ADR-005's microbatch model) was built on top of this model; amended again 2026-09-11 (see ADR-008) -- `customer_id`'s underlying identity signal is renamed to `customer_email` and changes from an always-present, directly-copied `CUST-#####` key to a sparse, sometimes-dirty captured email. This section's `customer_id`/`user_id`/`customer_global_id` naming, its "always present" framing, and the specific counts below (e.g. 503/547, 482/518) describe the state as originally built and are left as the historical record of what was verified at the time, per this project's amendment convention -- ADR-008 has the current behavior and the reasoning for the change.
 **Phase:** Phase 3B (this PR — clickstream staging). The incremental model, 3-day look-back window, and backfill/replay demonstration described in `docs/synthetic_data_spec.md`'s late-arriving-events section are explicitly out of scope here and land in a separate, later PR.
 
 ### Context
@@ -188,6 +188,8 @@ Since the whole point of routing "VARIANT parsing failures" to quarantine is to 
 
 ### Decision: coalesce `user_id`/`customer_global_id` into `customer_id`, not a schema-versioned dual column
 
+**Amended 2026-09-11 (ADR-008):** this section's claim that "both keys draw from the exact same synthetic `CUST-#####` population" described a Phase 1 build gap, not the intended design -- `docs/synthetic_data_spec.md` already documented (in its "Why ERP↔CRM join is deterministic while web is heuristic" section) that web identity was supposed to be a heuristic email match, not a direct copy of ERP's key. ADR-008 fixes this: the coalesce mechanism and its "one canonical column, not a schema-versioned dual column" reasoning below are unchanged and still apply, but the columns are now named `user_email`/`customer_global_email` → `customer_email`, and the value is a sparse, sometimes-dirty captured email rather than an always-present exact key.
+
 Two options were considered: expose both `user_id` and `customer_global_id` as separate nullable columns tagged by schema version, or coalesce them into one canonical `customer_id` column.
 
 Coalesce was chosen. The rename is a one-time, permanent cutover in the source system, not two coexisting business concepts that downstream models need to reason about differently — both keys draw from the exact same synthetic `CUST-#####` population (confirmed: `stg_web__events.customer_id` is non-null for all 482 pre-cutoff and all 518 post-cutoff rows, with values spanning the same `CUST-00001`–`CUST-00350` range on both sides), and the two columns are mutually exclusive by construction (never both present on one row). A dual-column design would push the schema-version bookkeeping onto every downstream consumer — including Phase 5's cross-shard identity resolution — for a distinction that carries no actual business meaning once resolved. This mirrors ADR-002's ERP currency conversion: normalize divergent native representations into one canonical column at the staging boundary, rather than propagating the source system's internal versioning downstream. If a future schema drift changed the *meaning* of the identifier (not just its name), a dual-column/schema-versioned approach would be the right call — that's not the case here.
@@ -204,7 +206,7 @@ qualify row_number() over (partition by event_id order by ingested_at asc) = 1
 
 ### Decision: quarantine routing, verified with an injected failure case
 
-`web_quarantine_reason()` (`dbt/macros/web_quarantine_reason.sql`) checks for a missing `event_id`, a missing-or-unparseable `event_timestamp`/`event_date`/`ingested_at` (post-`TRY_CAST`, so this catches both "field absent" and "field present but malformed"), and a missing `session_id`/`event_type`/`customer_id`. Applied identically to `stg_web__events` (keeps only passing rows) and `stg_web__events_quarantine` (keeps only failing rows), exactly mirroring `erp_quarantine_reason()`'s split.
+`web_quarantine_reason()` (`dbt/macros/web_quarantine_reason.sql`) checks for a missing `event_id`, a missing-or-unparseable `event_timestamp`/`event_date`/`ingested_at` (post-`TRY_CAST`, so this catches both "field absent" and "field present but malformed"), and a missing `session_id`/`event_type`/`customer_id`. Applied identically to `stg_web__events` (keeps only passing rows) and `stg_web__events_quarantine` (keeps only failing rows), exactly mirroring `erp_quarantine_reason()`'s split. **Amended 2026-09-11 (ADR-008):** the missing-`customer_id` check was removed -- once identity capture became sparse by design, a null identity field is the expected majority case, not a row-level validation failure. Every other check described here is unchanged.
 
 The routing was not just inferred from the `TRY_CAST`-on-a-literal finding above — it was proven end-to-end against a real row. One event was inserted directly into `DEV_ANALYTICS.RAW.RAW_WEB_EVENTS` with a fixed, obviously-synthetic `event_id` (`TEST-ARTIFACT-QUARANTINE-VERIFICATION-0001`) and a deliberately unparseable `event_timestamp` (`"NOT-A-VALID-TIMESTAMP"`, exercising the exact cast-failure mode confirmed above), otherwise matching a real event's shape. Rerunning both staging models: the row appeared in `stg_web__events_quarantine` with `quarantine_reason = 'missing_or_unparseable_event_timestamp'`, `event_timestamp` correctly `NULL` (the model build did not crash), and every other field parsed normally (`event_date`, `ingested_at`, `session_id`, `event_type`, `customer_id`, `page_url` all present and correct); the same `event_id` returned 0 rows from `stg_web__events`, confirming the malformed row did not leak into the clean model. The row was then deleted from `RAW_WEB_EVENTS` and both models rerun again; `RAW_WEB_EVENTS`/`stg_web__events`/`stg_web__events_quarantine` counts returned to exactly 1,050/1,000/0, with zero residual rows matching the test `event_id` anywhere — confirming the injection left no trace.
 
@@ -221,7 +223,7 @@ Type-specific fields (`page_url`, `product_id`, `quantity`, `search_query`) are 
 
 ## ADR-005: Web clickstream incremental model — microbatch strategy, 3-day lookback, backfill
 
-**Status:** Accepted (2026-09-10).
+**Status:** Accepted (2026-09-10); amended 2026-09-11 (see ADR-008) -- `stg_web__events.customer_id` (this model's pass-through `customer_id` column) is renamed `customer_email` and its underlying identity signal changes from an always-present exact key to a sparse, sometimes-dirty captured email. This ADR's own subject (microbatch strategy, lookback, backfill) is unaffected -- `event_timestamp`/`ingested_at`/batching logic don't depend on the identity column at all -- so nothing below needed correcting beyond this note.
 **Phase:** Phase 3B, second half (Issue #31). Builds on `stg_web__events` (Issue #29, ADR-004) without changing its logic, aside from one type correction found during this work (see "Found and fixed" below).
 
 ### Context
@@ -501,3 +503,94 @@ No dbt `exposures:` entry is added for a Tableau dashboard. Per this project's o
 - Web's `raw_web_events` freshness initially read `ERROR STALE` permanently under real wall-clock time, because this ADR originally keyed it on `ingested_at` -- a frozen synthetic column, not a real load timestamp (a category error, not an accepted tradeoff). Corrected the same day: web now uses the same `LAST_ALTERED` warehouse-metadata mechanism as ERP/CRM, re-verified end-to-end against a real reload (see above). No source in this project has a permanently-stale freshness check any more.
 - `stg_erp__order_items.order_item_key` and `stg_erp__orders.order_key` are now md5 hashes, not readable delimited strings. No consumer anywhere depended on the old format (verified by grep before changing it); any future model reading these columns should treat them as opaque surrogate keys, same as before.
 - `dbt_utils` is now a project dependency (`packages.yml`, pinned `1.4.1`) and `.sqlfluff_libs/` exists as a place to add a lint-time stub for any future dbt_utils macro this project calls by namespace -- extend it there rather than reaching for `sqlfluff:templater:jinja:context` overrides.
+
+## ADR-008: Web clickstream identity — from a direct `CUST-#####` copy to sparse, tiered-dirty captured email
+
+**Status:** Accepted (2026-09-11).
+**Phase:** Phase 5A pre-work (Issue #40), discovered during Phase 5A's own pre-work, ahead of building the actual identity-resolution model. Amends ADR-004 and ADR-005 (see their Status lines). The identity-resolution model itself (fuzzy-matching web against ERP/CRM) is explicitly out of scope here -- that's Phase 5A's own branch.
+
+### Context
+
+`docs/synthetic_data_spec.md` already documented, in its "Why ERP↔CRM join is deterministic while web is heuristic" section, that web identity was supposed to require heuristic/fuzzy matching -- unlike ERP↔CRM's genuine deterministic email join. But `data_gen/clickstream.py` never actually implemented that: it embedded `f"CUST-{rng.randint(1, 350):05d}"` -- the exact same value ERP US's `customer_id` uses -- directly into `user_id`/`customer_global_id` on every single event. That made web's identity a trivial exact-key match today, not a heuristic problem: `CUST-00042` in a clickstream event equals `CUST-00042` in ERP US byte-for-byte, on 100% of rows. This is a Phase 1 build gap relative to Phase 5's stated design, the same category as ADR-002's missing GBP rate and ADR-005's `TIMESTAMP_TZ` bug -- caught during Phase 5A's pre-work rather than after Phase 5A's model was already built against the trivial version, and fixed at the source rather than worked around downstream.
+
+The build plan's own framing matters here: the generator must not be designed to demonstrate heuristic matching -- it must simulate what a real web analytics pipeline would realistically, imperfectly capture, and let the matching problem fall out of that as a natural consequence. Two properties follow directly from that framing, neither of which the old direct-copy design had: (1) most web traffic is anonymous, so identity should be captured on a minority of events, not all of them; (2) a real pixel doesn't have privileged access to a CRM-grade internal ID -- the only plausible signal it can pick up is something a person or their browser actually surfaces, i.e. an email, and that signal is exactly as reliable as the mechanism that captured it (an autofilled account record vs. a hand-typed checkout field).
+
+### Decision: capture the customer's email, not a synthetic ID -- sparsely, at an event-type-dependent rate
+
+The captured signal is now an email pulled from `data_gen/identity_pool.py` (the same shared pool ERP/CRM already use), not a `CUST-#####` copy. Whether an event captures it at all is a per-event-type probability, reasoned rather than uniform:
+
+| Event type      | Capture rate | Why |
+| ---------------- | ------------ | --- |
+| `page_view`       | 8%           | Ordinary browsing only carries identity when it happens inside an already-authenticated session -- most page views don't. |
+| `search_query`     | 8%           | Same population as `page_view` -- searching doesn't require authentication. |
+| `cart_addition`    | 55%          | Materially more likely: closest to checkout, where an account-linked cart or a guest-checkout email capture is common -- but still well under certainty. |
+
+Against the default 1,000-event run: **140/1,000 canonical events (14.0%) carry an identity signal** -- confirmed directly against both the local `data/CLICKSTREAM_IDENTITY_TRUTH.csv` sidecar and, independently, `DEV_ANALYTICS.RAW.stg_web__events.customer_email is not null` (both give 140/1,000).
+
+### Decision: tiered dirtiness among captured signals, mirroring ADR-006's CRM country pattern
+
+Among captured signals, the observed value isn't always the customer's canonical email -- mirroring ADR-006's reasoned, tiered approach to CRM's country dirtiness rather than uniform randomized noise:
+
+- **Exact (~55%, target)** -- byte-for-byte identical. Represents identity captured programmatically from an account record.
+- **Tier 1, trivial normalization (~25%, target)** -- casing/whitespace noise (`apply_trivial_normalization_noise()`: uppercased, capitalized local-part, or leading/trailing whitespace), resolved by any reasonable lowercase-and-trim step. Represents a human typing/pasting into a guest-checkout field.
+- **Tier 2, genuine typo (~20%, target)** -- a single-character edit on the local part only (`apply_single_character_typo()`: adjacent-character transposition, a dropped character, or a keyboard-adjacent substitution), requiring real fuzzy matching. Bounded to one edit on the local part (domain never touched), with a check-and-retry collision guard against the full identity-pool email set so a distortion can never land on a *different* real customer's email -- confirmed directly: 0 of 28 realized tier-2 distortions triggered the guard's fallback, at this dataset's scale.
+
+Measured against the actual generated data (`data/CLICKSTREAM_IDENTITY_TRUTH.csv`, 140 captured events): **69 exact (49.3%), 43 tier 1 (30.7%), 28 tier 2 (20.0%)** -- close to the target 55/25/20 split (single-seed sampling variance, not a bug). All 28 tier-2 events map to 28 distinct customers (no repeats), so this isn't a handful of edge cases concentrated on one or two people.
+
+### Decision: field renamed `user_email`/`customer_global_email`, not kept as `user_id`/`customer_global_id`
+
+The mid-year schema-drift mechanism (a field-name change at the fixed 2025-07-01 cutoff) is preserved unchanged in mechanism -- a source system renaming a field mid-year is orthogonal to what type of value that field holds, so there's no reason to drop it. But keeping the old `user_id`/`customer_global_id` names while their content became an email would be actively misleading (an "id" field holding an email reads as a bug to a future reader), so the fields are renamed `user_email` (pre-cutoff) → `customer_global_email` (post-cutoff), coalesced at staging into a single `customer_email` column -- same coalesce mechanism ADR-004 established, same cutoff date, new names reflecting the new content. Every downstream reference was updated: `web_events_parsed()`, `stg_web__events(_quarantine)`, `int_web_events_incremental`, their `.yml` schemas, `docs/synthetic_data_spec.md`, and `docs/loading_notes.md`.
+
+### Decision: `customer_email` is no longer `not_null`-tested, and is removed from `web_quarantine_reason()`
+
+Before this fix, every event carried an identity value, so `not_null`/a quarantine check on it was a legitimate row-level validation. Now that capture is sparse by design, a null `customer_email` is the expected majority case (86% of rows), not a data-quality failure -- the same distinction `page_url`/`product_id`/`search_query` already draw (event-type-conditional nullability, not tested). `web_quarantine_reason()`'s `missing_customer_id` branch was removed; every other check (missing `event_id`, unparseable timestamps, missing `session_id`/`event_type`) is unchanged. `stg_web__events_quarantine` remains empty (0 rows) against the current dataset -- confirmed directly, not assumed.
+
+### Decision: `seed_match_truth.csv`/`build_match_truth.py` -- extend, don't replace, and add a generation-time sidecar
+
+**Investigation finding:** `build_match_truth.py` built web's ground truth by scanning `CLICKSTREAM_EVENTS.json` for literal `CUST-#####` values -- which worked only because the raw output *was* the exact truth. Once the signal is sparse and tier-2 values are genuinely, irreversibly distorted, scanning the dirtied output can no longer recover which customer a given captured value truly belongs to; that information only exists at the moment of generation, before dirtying.
+
+**Recommendation, and what was built:** extend `seed_match_truth.csv` (same person-grain file, same script) rather than introduce a new event-grain seed. `data_gen/clickstream.py` now writes `data/CLICKSTREAM_IDENTITY_TRUTH.csv`, a per-event sidecar (`event_id, customer_index, canonical_email, captured, dirt_tier, observed_value`) built before dirtying, in the same run, from the same in-memory objects -- not a second, drift-prone re-implementation of the dirtying logic. It's gitignored alongside the other raw extracts in `data/` (not loaded into `RAW_WEB_EVENTS` -- it's generation-time bookkeeping, not source data). `build_match_truth.py` now reads it (`scan_clickstream_truth()`) instead of scanning `CLICKSTREAM_EVENTS.json`, and aggregates it to person grain in `seed_match_truth.csv`: `clickstream_key` (a single exact key, no longer meaningful) is replaced with `clickstream_true_event_count`, `clickstream_captured_event_count`, and `clickstream_captured_variants` (the distinct, possibly-dirty strings a fuzzy matcher will actually see for that person).
+
+A full event-grain ground-truth seed (scored match confidence per event, say) was considered and deliberately not built here. Phase 5A hasn't yet decided what grain or representation its own scoring needs -- event, session, or captured-signal grain -- and locking one in now would be designing an abstraction for a consumer that doesn't exist yet, which this project's own precedent (ADR-006's `crm_us_country_variants`, ADR-007's "no additional custom macro") explicitly avoids. The person-grain summary above is sufficient for Phase 5A to check, per person, whether its fuzzy matcher recovered the right set of captured variants; if Phase 5A's actual scoring needs finer grain, `CLICKSTREAM_IDENTITY_TRUTH.csv` (regenerable from the same seed) or a purpose-built extension of it is the natural next step at that point, not a hypothetical this branch should pre-build.
+
+### Regression check: outcome-level and mechanism-level
+
+Adding RNG draws to `build_event()` (the capture roll, the dirt-tier roll, and the tier-1/tier-2 distortion draws) changes how many `random` calls each event consumes, which shifts the entire downstream draw sequence for the same seed -- every event after the first captured/dirtied one gets different specific field values than the pre-fix run, even though nothing about *those* fields' own logic changed. That shift is expected and was checked for directly, not assumed away:
+
+**Outcome-level** (before → after, both measured directly against real data, not inferred):
+
+| Metric | Before | After | 
+| ------- | ------ | ----- |
+| Raw rows (`RAW_WEB_EVENTS`) | 1,050 | 1,050 |
+| Distinct `event_id` | 1,000 | 1,000 |
+| Duplicate rows (pixel-retry) | 50 (5.0%) | 50 (5.0%) |
+| Late-arriving events (canonical, 2-4 day lag) | 20 (2.0%) | 20 (2.0%) |
+| `stg_web__events` rows | 1,000 | 1,000 |
+| `stg_web__events_quarantine` rows | 0 | 0 |
+| `int_web_events_incremental` rows | 1,000 (ADR-005) | 1,000, matches `stg_web__events` exactly |
+| Date range | 2025-01-05 – 2025-12-31 | 2025-01-05 – 2025-12-31 |
+| Schema-drift cutoff split (event count) | 503 pre / 547 post (raw, always-present field) | 491 pre / 509 post (canonical `stg_web__events`, confirmed 0 schema-drift violations) |
+| `event_type` distribution (raw, 1,050 rows, incl. duplicates) | page_view 758 / cart_addition 138 / search_query 154 | page_view 738 / cart_addition 161 / search_query 151 |
+
+Duplicate count, late count, and total row count are all formula-driven (`round(event_count * RATE)`, fixed list-position slicing for late events) rather than derived from specific RNG output, so they hold exactly regardless of the sequence shift -- confirmed, not assumed, by rerunning and re-measuring. The cutoff split and `event_type` distribution *are* RNG-content-dependent (`event_date`/`event_type` are themselves draws), so they shift by a small, expected amount within the same weights/date range -- 491/509 is still a full-year, roughly-even split, and 738/161/151 (70.3%/15.3%/14.4%) still tracks the 70/15/15 target weights closely. Neither is a hidden defect; both are the expected footprint of an intentionally different deterministic sequence for the same seed.
+
+**Mechanism-level:** the shift itself was directly confirmed, not just the aggregate outcomes -- diffing the pre-fix and post-fix `event_type` distributions (758/138/154 vs. 738/161/151, both against the full raw 1,050-row extract) shows individual events landing in different type buckets than before, proving the RNG call-count change did resequence per-event content exactly as expected, while every rate/formula-driven invariant above held anyway.
+
+### Match-rate breakdown: proof the fix created a genuine heuristic-matching problem
+
+All four numbers below were confirmed twice -- once against the local `data/CLICKSTREAM_IDENTITY_TRUTH.csv` sidecar, and independently against live `DEV_ANALYTICS` data (`stg_web__events.customer_email` joined to `seed_match_truth.canonical_email`, with no reference to the generator's own tier labels) -- and the two sources agree exactly:
+
+| Metric | Count | Rate |
+| ------- | ----- | ---- |
+| Identity capture rate (of 1,000 canonical events) | 140 | 14.0% |
+| Raw exact-match rate (of 140 captured, byte-for-byte vs. canonical email) | 69 | 49.3% |
+| Normalized exact-match rate (of 140 captured, after lowercase+trim) | 112 | 80.0% |
+| **Residual requiring genuine heuristic resolution** | **28** | **20.0%** |
+
+The critical result is the last row: 28 events, spanning 28 distinct customers, that no amount of case-folding or whitespace-trimming resolves -- an actual fuzzy-matching problem (bounded single-character-edit typos against a 350-person candidate pool) for Phase 5A's identity-resolution model to solve, not zero, and not a token handful of edge cases either. Before this fix, the equivalent residual was 0: the raw exact-match rate was 100% on every one of 1,000 events, because the "identity signal" was a direct copy of the join key. Phase 5A now has a real problem to solve.
+
+### Consequences
+
+- `customer_email`'s content (real-looking email addresses, same as ERP/CRM's existing `customer_email`/`contact_email` columns) is unmasked at the RAW/staging layer, same as ERP/CRM already are -- this is not a new PII-handling gap this fix introduces. `EMAIL_MASK` (ADR-001) is deliberately not yet attached to any column project-wide; it's scoped to attach to `dim_customer_360.contact_email` in Phase 6, once that gold model exists.
+- `data_gen/load_raw.py` gained a repeatable `--table` flag so a single source (here, `RAW_WEB_EVENTS`) can be reloaded without touching the other four tables' `CREATE OR REPLACE TABLE` -- useful any time only one generator changes, not just this fix.
+- Phase 5A's identity-resolution model was deliberately not touched in this branch -- it now has a genuine, measured, non-trivial matching problem to solve when it starts, instead of an exact key masquerading as one.

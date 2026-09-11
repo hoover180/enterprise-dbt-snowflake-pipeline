@@ -53,9 +53,12 @@ models:
           - accepted_values:
               arguments:
                 values: ["page_view", "cart_addition", "search_query"]
-      - name: customer_id
-        data_tests:
-          - not_null
+      - name: customer_email
+        description: >
+          Pass-through of stg_web__events.customer_email -- legitimately
+          null on most rows (sparse identity capture, see ADR-008 in
+          docs/data_modeling_decisions.md). Not tested not_null for the
+          same reason it isn't at the staging layer.
       - name: page_url
         description: Populated for event_type = page_view; null otherwise.
       - name: product_id

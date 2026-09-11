@@ -7,8 +7,10 @@ sources:
       Web clickstream extract loaded by data_gen/load_raw.py. Lands as a
       single VARIANT column (event_data) -- see docs/synthetic_data_spec.md,
       "Web clickstream source", for the full event shape and injected
-      messiness (mid-year user_id -> customer_global_id schema drift, ~5%
-      web-pixel retry duplicate events, late-arriving events).
+      messiness (mid-year user_email -> customer_global_email schema
+      drift, sparse/tiered-dirty identity capture -- ADR-008 in
+      docs/data_modeling_decisions.md, ~5% web-pixel retry duplicate
+      events, late-arriving events).
 
       No `database:` is set here (see ADR-007 in
       docs/data_modeling_decisions.md) -- omitting it lets dbt default to
@@ -49,8 +51,11 @@ sources:
           - name: event_data
             description: >
               Raw event payload. Common fields: event_id, event_timestamp,
-              event_date, ingested_at, session_id, event_type, and exactly
-              one of user_id (events before 2025-07-01) / customer_global_id
-              (events on or after). Type-specific fields: page_url
-              (page_view), product_id/quantity (cart_addition),
-              search_query (search_query).
+              event_date, ingested_at, session_id, event_type, and,
+              on the minority of rows where a web pixel actually captured
+              an identity signal (see ADR-008), at most one of user_email
+              (events before 2025-07-01) / customer_global_email (events on
+              or after) -- both keys are absent on an anonymous/uncaptured
+              event. Type-specific fields: page_url (page_view),
+              product_id/quantity (cart_addition), search_query
+              (search_query).
