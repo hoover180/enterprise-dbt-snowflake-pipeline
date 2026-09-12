@@ -705,3 +705,73 @@ All three original per-event-type capture rates land within normal sampling vari
 - `erp.py` no longer takes `--seed`; `clickstream.py`/`crm.py` both gained `--orders-per-region`, which must match `erp.py`'s own value for correlation to hold. `docs/synthetic_data_spec.md` documents this requirement at every relevant call site.
 - Phase 5B's reconciliation fact (the full-outer-key-union detail table) and Phase 6's bridge mart were deliberately not built here -- this branch's job was correct, realistic, well-correlated raw source data for those to consume. No dbt staging model (`stg_erp__orders`/`stg_web__events`/`stg_crm__tickets`) was touched; exposing the new raw fields there is the next branch.
 - `dbt/seeds/seed_match_truth.csv` was regenerated (via `data_gen/build_match_truth.py`, itself unmodified) against the new `US_ORDERS.csv`/`EU_ORDERS.csv`/`CRM_CUSTOMERS.csv`/`CLICKSTREAM_IDENTITY_TRUTH.csv` -- its content shifted (the same RNG-resequencing effect as everywhere else in this branch) but its own logic and shape are unaffected.
+
+## ADR-010: Exposing ADR-009's revenue fields through staging, and fixing the accepted_values tests ADR-009 left stale
+
+**Status:** Accepted (2026-09-11).
+**Phase:** Phase 5B pre-work continuation (Issue #42's own "next branch" note) -- ADR-009 added ERP lifecycle/refund fields, a web `purchase` event type, and CRM refund tickets to the raw generators but deliberately stopped short of staging. This branch is that next branch. Phase 5B's reconciliation fact and Phase 6's bridge mart are still not built here.
+
+### Context
+
+ADR-009 was explicit that it touched no dbt staging model. That left the repo in a state a peer review caught before any of this branch's own work started: `stg_erp__orders`/`stg_erp__order_items`'s `order_status` accepted_values test still listed only `["shipped", "delivered"]` (pre-ADR-009's two-state world), `stg_web__events`/`int_web_events_incremental`'s `event_type` test still listed only the original three event types, and `stg_crm__tickets`'s `category` test still listed only the original five categories -- none of them widened for ADR-009's `pending`/`cancelled`/`returned` statuses, `purchase` event type, or `refund` category. A fresh regenerate+load+test cycle therefore failed today, on `main`, before this branch changed anything.
+
+### Decision: reproduce the failure for real before fixing it
+
+Rather than assume the review's claim, the exact failure was reproduced first: `data_gen/erp.py`/`clickstream.py`/`crm.py` regenerated with a matching `--orders-per-region 500`, loaded fresh via `data_gen/load_raw.py`, then `dbt build --select staging.*` run against the untouched schema definitions.
+
+**Real, confirmed pre-fix failures** (dbt's `accepted_values` test groups by distinct value, so `dbt`'s own "Got N results" line reports distinct disallowed values, not row counts -- the row counts below are direct queries against the actually-failing data, not inferred from that line):
+
+| Test | Disallowed distinct values | Rows affected | Total rows |
+| ---- | ---------------------------- | --------------- | ------------ |
+| `accepted_values_stg_erp__orders_order_status` | 3 (`pending`, `cancelled`, `returned`) | 241 (39 cancelled + 7 pending + 195 returned) | 1,000 orders |
+| `accepted_values_stg_erp__order_items_order_status` | 3 (same) | 605 (96 + 16 + 493) | 2,473 item rows |
+| `accepted_values_stg_web__events_event_type` | 1 (`purchase`) | 382 | 9,982 events |
+| `accepted_values_stg_crm__tickets_category` | 1 (`refund`) | 224 | 1,124 tickets |
+
+All four widened to the full current value sets (`pending`/`cancelled`/`shipped`/`delivered`/`returned`; the four event types including `purchase`; the six categories including `refund`) -- `int_web_events_incremental`'s `event_type` test (a pass-through of `stg_web__events`) was fixed identically, since it carries the exact same stale list. Re-running the identical build: 56/56 staging-layer tests pass, 0 errors. This fix was committed and verified on its own, before any of the field-exposure work below, so it's independently reviewable and bisectable.
+
+### Decision: `ship_date`/`refund_date`/`refund_amount` are order-grain, not exposed on `stg_erp__order_items`
+
+Checked directly against `data_gen/order_pool.py` and `data_gen/erp.py` before writing any SQL, per this project's own established discipline (ADR-002's GBP rate, ADR-004's TRY_CAST): `order_pool.build_order()` sets `ship_date`/`refund_date`/`refund_amount` exactly once per order, and `erp.py`'s `build_order_rows()` stamps that same value onto every line-item row of the order. `refund_amount` specifically is `recognized_total` -- the order's full recognized amount, not a per-line figure. These are order-level facts that happen to be physically repeated across item-grain rows in the raw table, not line-item facts.
+
+Exposing them only on `stg_erp__orders` (via a corresponding `erp_orders_unioned()` change) rather than also on `stg_erp__order_items` follows the same grain discipline ADR-003 already established for `order_status`/`customer_id` -- order-level facts belong on the order-grain model, not duplicated onto every item row of the order for a consumer to accidentally sum N times. `stg_erp__order_items` is unchanged: none of ADR-009's three new ERP fields are item-level concepts.
+
+`refund_amount` is exposed in the order's native (unconverted) currency -- `stg_erp__orders` has never done currency conversion (ADR-003) and doesn't expose a `currency` column at all, so a USD-normalized refund figure requires joining `stg_erp__order_items` for currency context. This is a known, documented limitation of this branch, not an oversight; building that join is downstream work (Phase 5B's reconciliation fact), not staging's job.
+
+### Decision: `stg_web__events`'s new purchase-only fields follow ADR-004's TRY_CAST precedent
+
+`transaction_id`/`checkout_total`/`currency` are absent on every non-purchase event, the same event-type-conditional nullability already established for `page_url`/`product_id`/`quantity`/`search_query`. `checkout_total` is a numeric value written as a JSON string by `data_gen/clickstream.py` (`f"{order['checkout_total']:.2f}"`), so it gets the same `TRY_CAST(... as number(12,2))` treatment `web_events_parsed()` already uses for `quantity` -- not a plain cast, per ADR-004's finding that a plain `::type` cast on a VARIANT raises a hard error rather than yielding `NULL`. `transaction_id`/`currency` stay on a plain `::varchar` cast, matching `event_id`/`session_id`/`event_type` -- both are always string-shaped when present, with no failure mode for `TRY_CAST` to guard against.
+
+### Decision: two new singular tests encode ADR-009's actual cross-column invariants
+
+Column-level `not_null`/`accepted_values` tests can't express "these two columns must agree" -- the same reasoning ADR-003's `assert_erp_orders_status_snapshot_single_open_version` and ADR-006's `assert_stg_crm__tickets_ghost_flag_matches_antijoin` already established for this project. Two new tests follow that precedent:
+
+- `assert_stg_erp__orders_refund_fields_match_status`: `refund_date`/`refund_amount` are populated if and only if `order_status = 'returned'`.
+- `assert_stg_web__events_purchase_has_transaction_id`: every `event_type = 'purchase'` row has a non-null `transaction_id`.
+
+Ghost order references (CRM `order_reference`) and orphan `transaction_id`s were checked directly rather than given a redundant new test: no staging-layer anti-join test for either exists yet (there's nothing to anti-join against at this layer until Phase 5B's reconciliation fact exists), so this branch confirmed the documented rates hold by direct query instead of asserting them as a schema invariant that would need to be loosened every time the generator's seed shifts the exact count -- the same reasoning ADR-006 already gave for not asserting `is_ghost_account`'s count at a fixed value.
+
+### Verification: newly-exposed columns reproduce ADR-009's own documented figures exactly
+
+Queried directly against the same freshly regenerated/loaded/built dataset used for the accepted_values reproduction above:
+
+- `stg_erp__orders` lifecycle: all 195 `returned` orders have `ship_date`/`refund_date`/`refund_amount` populated; all 805 non-returned orders have `refund_date`/`refund_amount` null (and `pending`/`cancelled` orders also have `ship_date` null) -- exactly the invariant `assert_stg_erp__orders_refund_fields_match_status` encodes, confirmed before that test was even the thing being checked.
+- The five promo-validation-failure orders ADR-009's own worked table cites reproduce their exact checkout/recognized-total figures once `stg_web__events.checkout_total` and `stg_erp__orders` are joined on `transaction_id = order_id`: `US-000160` \$234.20, `EU-000245` \$263.06, `US-000029` \$373.17, `US-000183` \$738.87, `US-000330` \$1,139.00 -- all five match ADR-009's table to the cent.
+- CRM `order_reference` resolution against `stg_erp__orders`: 214 resolve to a real, returned order; 4 resolve to a real, non-returned order; 6 resolve to nothing -- matching ADR-009's own "214 (95.5%)/4 (1.8%)/6 (2.7%)" anti-join+status breakdown exactly.
+- Web purchase-event coverage: 382 total purchase events, 336 resolve to a real ERP order, 46 are orphans -- matching ADR-009's "336 (88.0%)/46 (12.0%)" exactly.
+
+This isn't a coincidence -- `data_gen/order_pool.build_order()` is a deterministic pure function of `(region, order_number)` plus the fixed `ORDER_POOL_SEED`, so any fresh regenerate at the same `--orders-per-region` reproduces the same content. It does confirm, empirically rather than just architecturally, that this branch's staging exposure didn't introduce any transcription error against the raw fields.
+
+### Verification: full build, lint, and generator contract tests
+
+- `sqlfluff lint dbt/models dbt/macros dbt/snapshots dbt/tests`: clean.
+- `dbt parse` / `dbt run` / `dbt test` (dev target, full project, not just staging): `dbt run` 8/8 models including the snapshot and `int_web_events_incremental`'s microbatch; `dbt test` 64/64 data tests, 0 errors.
+- `scripts/bootstrap.sh` (new -- a single script for the gen→load→`dbt build` sequence `docs/loading_notes.md` previously only documented as separate manual steps) run end-to-end from a clean state: 74/74 (`dbt build`'s combined model+test count) `PASS`, 0 errors.
+- `tests/test_generators.py` (new -- plain `unittest`, no new dependency): 6/6 pass, covering the `--orders-per-region` mismatch's actual (non-exception) failure mode, `ghost_order_number()`'s structural non-collision-with-real guarantee, and a closed-form regression bound on ADR-009's own "found and fixed" birthday-paradox pool-sizing issue.
+
+### Consequences
+
+- The accepted_values fix and the field-exposure work are independently reviewable commits (accepted_values fix first, verified passing before any other change was made) -- if the field-exposure work needs to be reverted or reworked, the test fix stands on its own.
+- `stg_erp__order_items` still has no revenue-lifecycle fields at all, by design -- any future consumer needing per-line refund allocation (e.g. a partial return) would need a new mechanism entirely, not a column added here; the generator itself only models whole-order returns today.
+- A USD-normalized `refund_amount` still requires joining `stg_erp__order_items` for currency -- `stg_erp__orders` remains currency-conversion-free, consistent with ADR-003. Building that join is Phase 5B's reconciliation fact, not this branch.
+- `scripts/bootstrap.sh` and `tests/test_generators.py` are net-new project infrastructure (a runnable end-to-end setup script, and this repo's first Python test suite) that outlive this specific branch's field-exposure purpose.
