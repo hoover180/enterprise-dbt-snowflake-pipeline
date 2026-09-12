@@ -110,7 +110,9 @@ CSV_SOURCES = [
             account_id VARCHAR,
             category VARCHAR,
             created_date DATE,
-            status VARCHAR
+            status VARCHAR,
+            claimed_amount NUMBER(12,2),
+            order_reference VARCHAR
         """,
         copy_target_columns="",
         file_format=CSV_FILE_FORMAT,
