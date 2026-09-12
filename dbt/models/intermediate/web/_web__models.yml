@@ -52,7 +52,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ["page_view", "cart_addition", "search_query"]
+                values: ["page_view", "cart_addition", "search_query", "purchase"]
       - name: customer_email
         description: >
           Pass-through of stg_web__events.customer_email -- legitimately

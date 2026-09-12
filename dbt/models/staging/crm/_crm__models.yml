@@ -70,7 +70,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ["billing", "technical", "account_access", "shipping", "general_inquiry"]
+                values: ["billing", "technical", "account_access", "shipping", "general_inquiry", "refund"]
       - name: created_date
         data_tests:
           - not_null

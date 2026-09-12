@@ -48,7 +48,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ["page_view", "cart_addition", "search_query"]
+                values: ["page_view", "cart_addition", "search_query", "purchase"]
       - name: customer_email
         description: >
           Coalesced from the source's user_email (events before
