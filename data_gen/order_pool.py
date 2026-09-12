@@ -101,6 +101,26 @@ WEB_MATCH_RATE = 0.35
 # that failed payment before the order ever persisted in ERP.
 WEB_ORPHAN_SHARE_OF_PURCHASE_EVENTS = 0.12
 
+# --- Second, independent amount-divergence mechanism: checkout-time shipping
+# estimate -----------------------------------------------------------------
+# The checkout promo mechanism above is one real divergence source, but it's
+# thin on its own (peer review, freeze-gate synthesis): a single mechanism
+# means every web/ERP amount mismatch traces back to the same root cause.
+# This is a structurally different one -- not a second copy of the promo
+# logic. checkout_total is what the customer's browser computed and showed
+# at checkout, which for this dataset bakes in a flat, client-estimated
+# shipping charge; ERP's recognized_total has no shipping line item at all
+# (out of scope for this dataset's schema), so an order flagged here
+# diverges from checkout_total by exactly that flat estimate. Both figures
+# are locally correct under their own definition of "the total" -- this is
+# the genuine "both sides right, different scope" reconciliation case, not
+# noise and not a validation failure. Independent of PROMO_RATE: an order
+# can have neither, either, or both mechanisms applied (see
+# docs/data_modeling_decisions.md's freeze-baseline ADR for the measured
+# overlap).
+SHIP_ESTIMATE_RATE = 0.20
+SHIP_ESTIMATE_FLAT = {"US": Decimal("8.99"), "EU": Decimal("11.99")}
+
 # Per region. Deliberately much larger than crm.py's GHOST_ACCOUNT_POOL_SIZE
 # (25): web draws roughly 45-50 orphan purchase events per default run (see
 # clickstream.py), and a pool that small would make independent random draws
@@ -240,6 +260,14 @@ def build_order(region: str, order_number: int) -> dict[str, Any]:
 
     has_web_purchase = rng.random() < WEB_MATCH_RATE
 
+    # Second amount-divergence mechanism (see SHIP_ESTIMATE_RATE above).
+    # Deliberately the last rng draw in this function so it never resequences
+    # any other field of this same order -- it only adds a new fact on top.
+    ship_estimate_applied = rng.random() < SHIP_ESTIMATE_RATE
+    ship_estimate_amount = SHIP_ESTIMATE_FLAT[region] if ship_estimate_applied else Decimal("0.00")
+    if ship_estimate_applied:
+        checkout_total = (checkout_total + ship_estimate_amount).quantize(Decimal("0.01"))
+
     return {
         "region": region,
         "order_number": order_number,
@@ -254,6 +282,8 @@ def build_order(region: str, order_number: int) -> dict[str, Any]:
         "checkout_total": checkout_total,
         "promo_applied": promo_applied,
         "promo_validated": promo_validated,
+        "ship_estimate_applied": ship_estimate_applied,
+        "ship_estimate_amount": ship_estimate_amount,
         "status": status,  # pending | shipped | delivered | returned | cancelled
         "ship_date": ship_date,
         "refund_date": refund_date,
