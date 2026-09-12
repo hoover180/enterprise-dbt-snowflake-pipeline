@@ -4,27 +4,14 @@ from __future__ import annotations
 
 import argparse
 import csv
-import random
-from datetime import date, timedelta
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from faker import Faker
-
+from order_pool import DEFAULT_ORDERS_PER_REGION, build_order
 from identity_pool import IDENTITY_POOL_SEED, build_identity_pool
 
 
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data"
-REGIONS = ("US", "EU")
-
-# Fixed "as-of" reference date, matching clickstream.py's EVENT_END, so
-# regeneration with the same seed is fully reproducible: date.today() would
-# leave the RNG-driven content identical but silently drift every date value
-# forward by however many days have passed since the last run.
-AS_OF_DATE = date(2025, 12, 31)
-ORDER_DATE_START = AS_OF_DATE - timedelta(days=365)
-ORDER_DATE_END = AS_OF_DATE
 
 US_COLUMNS = {
     "order_id": "order_id",
@@ -32,6 +19,9 @@ US_COLUMNS = {
     "customer_email": "customer_email",
     "order_date": "order_date",
     "status": "order_status",
+    "ship_date": "ship_date",
+    "refund_date": "refund_date",
+    "refund_amount": "refund_amount",
     "product_id": "sku",
     "line_number": "line_item_no",
     "quantity": "quantity",
@@ -47,6 +37,9 @@ EU_COLUMNS = {
     "customer_email": "contact_email",
     "order_date": "placed_on",
     "status": "fulfillment_state",
+    "ship_date": "ship_date",
+    "refund_date": "refund_date",
+    "refund_amount": "refund_amount",
     "product_id": "product_code",
     "line_number": "item_seq",
     "quantity": "units",
@@ -62,14 +55,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--orders-per-region",
         type=int,
-        default=500,
-        help="Number of orders to generate in each regional shard (default: 500).",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=20260904,
-        help="Seed for repeatable extracts (default: 20260904).",
+        default=DEFAULT_ORDERS_PER_REGION,
+        help=f"Number of orders to generate in each regional shard (default: {DEFAULT_ORDERS_PER_REGION}). "
+        "Must match the value passed to clickstream.py/crm.py's own --orders-per-region for their "
+        "order references to correlate against this shard -- see data_gen/order_pool.py.",
     )
     parser.add_argument(
         "--output-dir",
@@ -83,17 +72,24 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def build_order(
+def build_order_rows(
     order_number: int,
     region: str,
-    fake: Faker,
-    rng: random.Random,
-    email_by_index: dict[int, str],
     eu_client_ref_by_index: dict[int, str],
+    email_by_index: dict[int, str],
 ) -> list[dict[str, Any]]:
-    """Create one order and its item rows at order-item grain."""
-    order_id = f"{region}-{order_number:06d}"
-    customer_index = rng.randint(1, 350)
+    """Create one order's item rows at order-item grain from the shared order pool.
+
+    All order content (customer, dates, items, status/lifecycle, refund) comes
+    from order_pool.build_order() -- deterministic from (region, order_number)
+    alone, independent of this script's own randomness, exactly so web/CRM can
+    derive the same order without reading this script's output. This function
+    only maps that shared truth onto ERP's own id-minting and column-naming
+    conventions (region-specific customer_id/client_ref schemes, US/EU column
+    names) -- see US_COLUMNS/EU_COLUMNS.
+    """
+    order = build_order(region, order_number)
+    customer_index = order["customer_index"]
     if region == "EU":
         # EU mints its own independent sequential ID, assigned in first-encounter
         # order within this generation run -- no digit relationship to
@@ -104,48 +100,29 @@ def build_order(
     else:
         customer_id = f"CUST-{customer_index:05d}"
     customer_email = email_by_index[customer_index]
-    order_date = fake.date_between(start_date=ORDER_DATE_START, end_date=ORDER_DATE_END)
-    currency = "USD" if region == "US" else rng.choice(("EUR", "GBP"))
-    shipping_country = "US" if region == "US" else rng.choice(("DE", "FR", "NL", "ES", "IT"))
 
-    item_count = rng.randint(1, 4)
     rows = []
-    for line_number in range(1, item_count + 1):
-        quantity = rng.randint(1, 5)
-        unit_price = Decimal(rng.randint(800, 25000)) / 100
-        tax_rate = Decimal("0.08") if region == "US" else Decimal("0.20")
-        tax_amount = (unit_price * quantity * tax_rate).quantize(Decimal("0.01"))
+    for item in order["items"]:
         rows.append(
             {
-                "order_id": order_id,
+                "order_id": order["order_id"],
                 "customer_id": customer_id,
                 "customer_email": customer_email,
-                "order_date": order_date.isoformat(),
-                "status": "pending",
-                "product_id": f"SKU-{rng.randint(1, 250):05d}",
-                "line_number": line_number,
-                "quantity": quantity,
-                "unit_price": f"{unit_price:.2f}",
-                "currency": currency,
-                "tax_amount": f"{tax_amount:.2f}",
-                "shipping_country": shipping_country,
+                "order_date": order["order_date"].isoformat(),
+                "status": order["status"],
+                "ship_date": order["ship_date"].isoformat() if order["ship_date"] else "",
+                "refund_date": order["refund_date"].isoformat() if order["refund_date"] else "",
+                "refund_amount": f"{order['refund_amount']:.2f}" if order["refund_amount"] is not None else "",
+                "product_id": item["product_id"],
+                "line_number": item["line_number"],
+                "quantity": item["quantity"],
+                "unit_price": f"{item['unit_price']:.2f}",
+                "currency": order["currency"],
+                "tax_amount": f"{item['tax_amount']:.2f}",
+                "shipping_country": order["shipping_country"],
             }
         )
     return rows
-
-
-def apply_destructive_status_updates(rows: list[dict[str, Any]], rng: random.Random) -> None:
-    """Advance statuses in place, retaining only each order's current state."""
-    orders: dict[str, list[dict[str, Any]]] = {}
-    for row in rows:
-        orders.setdefault(row["order_id"], []).append(row)
-
-    for order_rows in orders.values():
-        for row in order_rows:
-            row["status"] = "shipped"
-        if rng.random() < 0.82:
-            for row in order_rows:
-                row["status"] = "delivered"
 
 
 def project_columns(rows: list[dict[str, Any]], column_map: dict[str, str]) -> list[dict[str, Any]]:
@@ -160,22 +137,17 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
-def generate_extracts(orders_per_region: int, seed: int, output_dir: Path) -> None:
-    rng = random.Random(seed)
-    fake = Faker()
-    fake.seed_instance(seed)
-
+def generate_extracts(orders_per_region: int, output_dir: Path) -> None:
     email_by_index = {person["index"]: person["email"] for person in build_identity_pool(IDENTITY_POOL_SEED)}
-    eu_client_ref_by_index: dict[int, str] = {}
 
     for region, column_map in (("US", US_COLUMNS), ("EU", EU_COLUMNS)):
+        eu_client_ref_by_index: dict[int, str] = {}
         rows = []
         for order_number in range(1, orders_per_region + 1):
-            rows.extend(build_order(order_number, region, fake, rng, email_by_index, eu_client_ref_by_index))
-        apply_destructive_status_updates(rows, rng)
+            rows.extend(build_order_rows(order_number, region, eu_client_ref_by_index, email_by_index))
         write_csv(output_dir / f"{region}_ORDERS.csv", project_columns(rows, column_map))
 
 
 if __name__ == "__main__":
     arguments = parse_args()
-    generate_extracts(arguments.orders_per_region, arguments.seed, arguments.output_dir)
+    generate_extracts(arguments.orders_per_region, arguments.output_dir)
