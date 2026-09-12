@@ -6,12 +6,15 @@ models:
       Incrementally-materialized, event-grain pass-through of
       stg_web__events (Phase 3B, ADR-005 in docs/data_modeling_decisions.md).
       Uses dbt-core 1.12's microbatch incremental strategy, batched daily on
-      event_timestamp, with a 3-batch lookback so events whose ingested_at
-      lands up to a few days after event_timestamp (docs/synthetic_data_spec.md,
-      "Late-arriving events") are picked up by a later run's reprocessed
-      trailing window instead of requiring a full rebuild. Overrides this
-      project's intermediate-layer ephemeral default (dbt_project.yml) --
-      an incremental model must be a persisted table.
+      event_timestamp, with a 4-batch lookback (data_gen/clickstream.py's
+      build_ingested_at() draws late-arrival lag as randint(2, 4), i.e. up
+      to 4 days -- lookback is sized to match, see ADR-005's 2026-09-12
+      amendment) so events whose ingested_at lands up to 4 days after
+      event_timestamp (docs/synthetic_data_spec.md, "Late-arriving events")
+      are picked up by a later run's reprocessed trailing window instead of
+      requiring a full rebuild. Overrides this project's intermediate-layer
+      ephemeral default (dbt_project.yml) -- an incremental model must be a
+      persisted table.
     columns:
       - name: event_id
         description: >
