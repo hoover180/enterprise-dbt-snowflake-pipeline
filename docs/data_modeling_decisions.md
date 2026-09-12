@@ -96,7 +96,7 @@ This is deliberately minimal: no retry counts, no replay orchestration, no resol
 
 ## ADR-003: dbt Snapshots (SCD2) over ERP's destructive order-status updates
 
-**Status:** Accepted (2026-09-10).
+**Status:** Accepted (2026-09-10); amended 2026-09-12 to state plainly what this snapshot does and doesn't prove -- see "Amendment (2026-09-12): scope of what this snapshot actually recovers" at the end of this ADR. No code changed; this is a documentation-only clarification requested during the data_gen/ freeze-gate review.
 **Phase:** Phase 3 (this PR — Issue #17). Builds on `stg_erp__order_items` (Issue #16, ADR-002) but is intentionally a separate model and a separate PR.
 
 ### Context
@@ -157,6 +157,14 @@ After the manual `UPDATE` (11 line-item rows affected per shard, matching those 
 - `erp_orders_status_snapshot` is the only place in this project with real order-status history; every other model still sees only the current (post-overwrite) status, exactly as the source provides.
 - The singular test `assert_erp_orders_status_snapshot_single_open_version` (`dbt/tests/`) encodes the invariant that actually matters for SCD2 correctness — never more than one currently-open row per order — rather than relying solely on schema tests, which can't express a cross-row condition like this.
 - Extending this to CRM or clickstream status-like fields in the future should follow the same shape: a narrow, grain-appropriate staging model feeding a `check`-strategy snapshot scoped to the specific column(s) that need history, not a blanket snapshot of an entire wide model.
+
+### Amendment (2026-09-12): scope of what this snapshot actually recovers
+
+Raised during the `data_gen/` freeze-gate review: this ADR's own language ("recover that history," "genuine order-status history") is easy to over-read as "this snapshot reconstructs the full history of every order's status changes." It doesn't, and it's worth stating plainly what it actually proves, since a reader of the gold-layer output has no other way to know the difference.
+
+**What this snapshot recovers:** the platform's own ingest-time knowledge of an order's status, going forward from whenever the snapshot first started running against it. Every run after that point diffs the source's current `order_status`/`fulfillment_state` against the last snapshotted state and writes a new row exactly when it changed — this is genuine, real history of what *this pipeline observed*, correctly timestamped to when it observed it (the manual-update demonstration above proves that mechanism end-to-end, not just asserts it).
+
+**What it does not recover:** anything about an order's status *before* the snapshot existed. `stg_erp__orders`/`US_ORDERS.csv`/`EU_ORDERS.csv` only ever expose the current, already-overwritten value — there is no earlier state anywhere in the source for the first snapshot run to diff against, so every order's first-ever snapshotted row is necessarily its state *as of that first run*, not its state as of when it was actually created or last changed. Concretely: this snapshot cannot answer "what was order US-000004's status on 2025-11-01" for any date before the snapshot began running, because that information was never captured by anything — it was destructively overwritten by the source before this pipeline ever had a chance to see it. A "what did we believe as of close night" query for a period before this snapshot's own start date is not a query this mechanism can answer, no matter how it's phrased against `erp_orders_status_snapshot` — the data to answer it genuinely does not exist upstream. This is not a limitation specific to this implementation; it's the fundamental floor of snapshotting a source that has already destroyed its own prior-state history, stated here so it isn't assumed away by a future consumer of this model.
 
 ## ADR-004: Web clickstream staging — VARIANT parsing, customer-key coalesce, pixel-retry dedup
 
@@ -801,3 +809,84 @@ This isn't a coincidence -- `data_gen/order_pool.build_order()` is a determinist
 - `stg_erp__order_items` still has no revenue-lifecycle fields at all, by design -- any future consumer needing per-line refund allocation (e.g. a partial return) would need a new mechanism entirely, not a column added here; the generator itself only models whole-order returns today.
 - A USD-normalized `refund_amount` still requires joining `stg_erp__order_items` for currency -- `stg_erp__orders` remains currency-conversion-free, consistent with ADR-003. Building that join is Phase 5B's reconciliation fact, not this branch.
 - `scripts/bootstrap.sh` and `tests/test_generators.py` are net-new project infrastructure (a runnable end-to-end setup script, and this repo's first Python test suite) that outlive this specific branch's field-exposure purpose.
+
+## ADR-011: data_gen/ freeze baseline
+
+**Status:** Accepted (2026-09-12).
+**Phase:** Freeze gate ahead of Phase 5B's reconciliation fact and Phase 6's gold models. Five independent peer reviews of `data_gen/` converged on a small set of gaps between "the generator has the right mechanisms" and "the realized data actually forces a hard solution." This branch closes those gaps and declares `data_gen/` frozen as of the commit below.
+
+### Context
+
+ADR-008/009/010 built the identity-resolution and revenue-reconciliation mechanisms Phase 5 needs. Peer review of that work, done specifically to gate a freeze (no more generator changes after this branch, so every downstream phase builds against fixed ground truth), found four real gaps and asked for one documentation clarification and one composed-effects check. This ADR records the fix for each, the real measured rate/dollar impact against a fresh regenerate, and the freeze declaration itself.
+
+**Baseline:** commit `b419baa` (the last commit in this branch that changes `data_gen/`'s realized output), `--orders-per-region 500` (the project default -- 1,000 total orders, 500/region). All numbers below are direct queries against `DEV_ANALYTICS.RAW` and its staging models after a fresh `data_gen/erp.py`, `data_gen/clickstream.py`, `data_gen/crm.py`, `data_gen/load_raw.py`, `dbt build` cycle at that commit -- not carried over from a prior session or inferred from generator logic alone.
+
+### Mechanism 1 (pre-existing, unchanged): checkout promo / validation failure
+
+18% of orders (`PROMO_RATE`) get a checkout-time 10% discount; 30% of those (`PROMO_VALIDATION_FAILURE_RATE`) fail ERP's backend validation. Verified real and unchanged by this branch: 45 orders (4.5%) show the mechanism's signature multiplicative divergence (`checkout_total = recognized_total * 0.9`, to the cent after per-line tax rounding). Kept as-is -- this was never in question, only its *sufficiency alone* was.
+
+### Mechanism 2 (new, Part B): checkout-time shipping estimate
+
+`order_pool.SHIP_ESTIMATE_RATE` (20%) and `SHIP_ESTIMATE_FLAT` ($8.99 US / EUR11.99 EU) -- see `docs/synthetic_data_spec.md`. Realized against the baseline: **178/1,000 orders (17.8%)** get the estimate. Combined with mechanism 1: 38 orders promo-only ($3,914.87), 171 orders shipping-only ($1,783.29), 7 orders both ($616.02) -- **$6,314.18 total combined divergence, 0.60% of $1,050,629.48 total recognized revenue**, across **216/1,000 orders (21.6%)** with some divergence. Of the 336 matched web/ERP order pairs, 249 agree within $0.02, 6 are rounding dust, and **81 (24.1% of matched pairs) show a real (>=$1) divergence** -- up from 16 (4.8%) with mechanism 1 alone.
+
+Worked examples (checkout_total vs. native-currency recognized total, both queried directly):
+
+| transaction_id | checkout_total | recognized total | diff | mechanism |
+| -------------- | --------------- | ------------------ | ----- | --------- |
+| EU-000004 | 891.67 | 879.68 | +11.99 | shipping estimate only (EU flat rate) |
+| US-000008 | 587.60 | 578.61 | +8.99 | shipping estimate only (US flat rate) |
+| US-000005 | 498.04 | 543.38 | -45.34 | both: promo-fail (0.9x) then +8.99 shipping estimate |
+| EU-000245 | 263.06 | 292.29 | -29.23 | promo-fail only |
+
+### Mechanism 3 (Part A): identity collision tier
+
+`identity_pool.COLLISION_PAIR_COUNT` (40 people / 20 pairs) and `clickstream.COLLISION_RATE_WITHIN_TIER2` -- see `docs/synthetic_data_spec.md`'s "Identity collision tier". Realized: **44 of 356 tier-2-eligible events (12.4%) are collisions**, spanning **26 distinct source/target pairs**. Directly verified: all 44 observed values equal a genuinely different real customer's canonical email, never the source's own and never a value nobody owns.
+
+Worked example: customer index 256 (Nathan Walter, `ysmith@example.net`) is a designated collision source for customer index 116 (Patrick Valencia, `ysimth@example.net`) -- a single adjacent-character transposition apart, and Patrick Valencia is a real, living customer with his own real orders in this dataset (see Composition below), not a synthetic placeholder.
+
+### Mechanism 4 (Part C): CRM wrong-but-valid reference rate
+
+`crm.REFUND_REF_WRONG_VALID_RATE` raised 0.06 -> 0.18. Realized (replaying the generator's own reference-tail decision, the same methodology ADR-009 used): **38 of 224 refund tickets (17.0%) are true wrong-but-valid references**, of which 22 (9.8% of all refund tickets) are detectable by a naive anti-join+status check and 16 land on another real returned order (indistinguishable from a correct reference without replaying generator intent). A naive inner join on `order_reference` misattributes **22 tickets and $26,817.02 of $266,394.54 claimed dollars (10.1%)** -- materially visible in both row count and dollars, not a footnote. `REFUND_REF_NONEXISTENT_RATE` (4%, unchanged) accounts for the remaining tail: 4 tickets reference an order that doesn't exist at all.
+
+### Mechanism 5 (Part D): bounded duplicate-CRM-account population, and a found defect
+
+**Found during this branch's investigation, not assumed:** `crm.py`'s account generation drew `customer_index` via an independent `rng.randint(1, 350)` per account row -- a sample *with* replacement, never a deliberate mechanism. Against the pre-freeze baseline this left **125 of 350 real people (36%) with zero CRM accounts at all**, and gave **93 people (26.6%) 2-4 accidental duplicate accounts**, none of it documented or bounded, and directly undermining this project's own "cross-channel presence" and "CRM joins to ERP via email" design claims. Fixed: accounts are now assigned one-to-one via a shuffled, without-replacement mapping over the 350-person pool.
+
+On top of that clean baseline, `DUPLICATE_ACCOUNT_RATE` (3%) adds a small, deliberate, bounded duplicate population. Realized: **360 total accounts, covering all 350 people (100%, up from 225/350 pre-fix), 10 people (2.9%) with exactly 2 accounts each** -- `count(distinct account_id)` (360) measurably and precisely diverges from `count(distinct canonical customer)` (350) by exactly the deliberate duplicate count, confirmed directly against `DEV_ANALYTICS.RAW.CRM_CUSTOMERS`.
+
+Worked example: `elizabethmeyer@example.net` (Danielle Howard) holds `ACCT-00072` (name "Danielle Howard", country `ES`) and `ACCT-00359` (name "DANIELLE HOWARD", country `USA`) -- the same real person, two accounts, a plausible casing variant.
+
+### Part E: composed cohort check
+
+Queried directly rather than assumed: **75 orders** belong to one of the 26 realized collision-source customers; of those, **15** also carry an amount-divergence mechanism; of those, **2 (US-000008, US-000165)** additionally have a month-crossing refund (all three mechanisms stacked on the same order). This overlap is real and emergent -- not forced. Given the base rates involved (a ~7.4% chance an order's customer is a realized collision source, a 21.6% chance of some amount divergence, and a 74.9% chance a returned order's refund crosses a calendar month), a small double- and triple-stacked population falling out on its own is exactly what independent, low-probability mechanisms produce, and it's large enough (15 double-stacked, 2 triple-stacked) to be a real, citable population rather than pure chance noise. **Decision: no structural change was made to force a larger "nasty cohort"** -- the individual mechanisms are each independently real and meaningful on their own, and artificially inflating the overlap would mean hand-picking which mechanisms co-occur, which is a worse kind of unrealism than a naturally-small overlap.
+
+Full worked example, **US-000008** (all facts queried directly against `DEV_ANALYTICS.RAW`): customer `CUST-00256` / `ysmith@example.net` (Nathan Walter, a realized collision source for Patrick Valencia's `ysimth@example.net`) -- ERP: `ship_date` 2025-05-23, `refund_date` 2025-06-02 (crosses into a different calendar month), `refund_amount` $578.61. Web: checkout event on 2025-05-18, `checkout_total` $587.60 (= $578.61 + $8.99 US shipping-estimate flat rate -- deterministic and traceable). CRM: **two** refund tickets reference this exact order (`TCKT-000972`, status `pending`, claimed $578.61; `TCKT-001047`, status `closed`, claimed $578.61) -- a customer contacting twice, both amounts agreeing with ERP exactly (no posted-mismatch on either).
+
+### Verification: the seven freeze-readiness checks
+
+1. **Materiality in dollars:** combined amount-divergence mechanisms, $6,314.18 / $1,050,629.48 recognized revenue (0.60%), across 21.6% of orders by row count. CRM reference-integrity misattribution (naive join), $26,817.02 / $266,394.54 claimed refund dollars (10.1%).
+2. **Composition:** see Part E above -- 75 collision-adjacent orders, 15 double-stacked, 2 triple-stacked; a real, non-forced, non-zero overlap.
+3. **Cross-channel presence:** of the 350 canonical people, **334 (95.4%) appear in ERP, CRM, and clickstream simultaneously** (up from a materially lower number pre-Part-D, since CRM coverage alone was only 225/350 before that fix); CRM coverage is now 350/350 (100%).
+4. **Collision targets are living customers:** confirmed directly -- all 44 realized collision events map to a genuinely different real customer's canonical email, and that customer (e.g. Patrick Valencia, customer index 116) has real orders, a real CRM account, in this dataset like any other of the 350.
+5. **`transaction_id` coverage:** 336 of 1,000 real ERP orders (33.6%) have a matching web purchase event; 664 (66.4%) don't. Of 382 total purchase events, 46 (12.0%) are orphans referencing no real ERP order. A naive "join on transaction_id, done" strategy visibly fails as a complete reconciliation approach in both directions.
+6. **Shard union non-cosmetic:** confirmed directly, not just by column-name difference -- `US_ORDERS.customer_id`'s numeric part encodes `customer_index` directly (`CUST-00042` = customer index 42 always), while `EU_ORDERS.client_ref`'s numeric part encodes first-encounter order within the EU generation run, unrelated to `customer_index` (`EU-CLI-000001` resolves to `peterchurch@example.com`, a completely different real person from `CUST-00001`'s `melissanorman@example.org`). Per Review 4, this was not a freeze blocker on its own, but is now directly confirmed and documented rather than left as an assumption.
+7. **Truth-file isolation:** `grep -rn "seed_match_truth\|CLICKSTREAM_IDENTITY_TRUTH"` across the repo, outside `tests/` and `dbt/seeds/`, returns zero matches -- reconfirmed after every change in this branch.
+
+### Final acceptance test
+
+All four, from the raw files alone, after the fresh regenerate+reload above:
+
+- **Three different numbers for one real month (June 2025), each independently explainable:** ERP shipped-net revenue (ship-based recognition minus same-month refunds) = $83,036.80 - $28,479.12 = **$54,557.68**. Web checkout-sum (36 purchase events with `event_date` in June, native currency, not currency-converted -- a genuinely different, non-comparable scope by design) = **$33,470.81**. CRM refund claims created in June (26 tickets, some referencing orders shipped in other months, some wrong-but-valid) = **$30,202.49**.
+- **Same-order-different-money (not just coverage/timing):** order `US-000008` -- web `checkout_total` $587.60 vs. ERP recognized/refund total $578.61, a $8.99 difference traced exactly to the shipping-estimate mechanism, not noise.
+- **A real customer exists twice in CRM:** `elizabethmeyer@example.net` (Danielle Howard) as `ACCT-00072` and `ACCT-00359` -- see Mechanism 5 above.
+- **A web identity string plausibly matches two real people, with the truth file recording which is correct:** `CLICKSTREAM_IDENTITY_TRUTH.csv` records an event truly belonging to customer index 256 (`ysmith@example.net`) with `observed_value = ysimth@example.net`, `dirt_tier = collision`, `match_status = possible_collision` -- and `ysimth@example.net` is customer index 116's own real canonical email, not a coincidence.
+
+### Freeze declaration
+
+**`data_gen/` is frozen as of commit `b419baa1cdbeb7de17d47ea1aa8e4fb48e905267`.** No further changes to `data_gen/` except to fix a genuine, independently-verified defect in already-existing behavior (the same bar Mechanism 5's account-coverage fix and ADR-002/004/005/008's "found and fixed" sections were held to) -- not to add new mechanisms, resize existing rates for narrative convenience, or chase a specific downstream test's convenience. Phase 5A/5B/6 build against this fixed ground truth from here forward. See `docs/workflow.md` for the standing rule.
+
+### Consequences
+
+- Every mechanism in this ADR is independently real, bounded, documented, and verified against live `DEV_ANALYTICS.RAW` data -- not asserted from generator logic alone.
+- `docs/synthetic_data_spec.md` reflects all of the above as current-state description (not a historical record) as of this same commit.
+- Phase 5A's identity resolver and Phase 5B's reconciliation fact now have a materially harder, more realistic ground truth to work against than before this branch: a real false-merge case to avoid (collision tier), a real reference-integrity failure mode at visible scale (CRM wrong-but-valid), a real duplicate-entity case to resolve (CRM duplicate accounts), and two independent, occasionally-stacking amount-divergence mechanisms instead of one.

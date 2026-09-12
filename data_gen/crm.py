@@ -53,16 +53,41 @@ TICKET_STATUSES = ("open", "pending", "resolved", "closed")
 # no CRM contact at all).
 REFUND_TICKET_MULTIPLIER = 1.15
 
-# Order-reference correctness tail, mirroring GHOST_ACCOUNT_RATE's proportions
-# (a minority pattern, not a headline-sized fraction): most refund tickets
-# reference the correct real order; a small tail is a transposition-style
+# Order-reference correctness tail. A small tail is a transposition-style
 # typo landing on a DIFFERENT real, existing order (the dangerous
 # wrong-but-valid case -- a confident wrong match, not an obvious miss); a
 # smaller tail reuses the ghost-reference mechanism already built for CRM's
 # ghost accounts, referencing an order that doesn't exist at all.
-REFUND_REF_WRONG_VALID_RATE = 0.06
+#
+# REFUND_REF_WRONG_VALID_RATE was originally 0.06 (mirroring
+# GHOST_ACCOUNT_RATE's proportions), but freeze-gate peer review found that
+# too thin: only 4 of 224 refund tickets were even DETECTABLE as
+# wrong-but-valid by a naive anti-join+status check against the default
+# dataset (most of the true wrong-but-valid tail happens to land on another
+# order that's also returned, making it indistinguishable from a correct
+# reference without replaying the generator's own intent -- see the freeze
+# baseline ADR in docs/data_modeling_decisions.md). Raised to 0.18 so a
+# naive inner join on order_reference misattributes a materially visible
+# share of refund tickets and dollars, not a footnote-sized one.
+REFUND_REF_WRONG_VALID_RATE = 0.18
 REFUND_REF_NONEXISTENT_RATE = 0.04
-# Remaining ~0.90 is a correct reference.
+# Remaining ~0.78 is a correct reference.
+
+# --- Deliberate, bounded duplicate-CRM-account population -----------------
+# Found during freeze-gate investigation: build_account() used to draw
+# customer_index = rng.randint(1, 350) independently per account row (a
+# sample WITH replacement over the 350-person pool), which was never an
+# intentional mechanism -- it just meant ~125 of the 350 real people had NO
+# CRM account at all, and ~93 had 2-4 accounts purely by chance, all
+# undocumented. Accounts are now assigned one-to-one (a shuffled, without-
+# replacement mapping -- see generate_extracts) so CRM coverage of the
+# identity pool is what the existing docs already implied it was. On top of
+# that clean 1:1 baseline, a small, deliberate, documented fraction of
+# people get a genuine SECOND account -- the realistic "customer signed up
+# twice" case peer review asked for -- with a name-formatting/casing
+# variant, mirroring dirty_country()'s reasoned-variant approach.
+DUPLICATE_ACCOUNT_RATE = 0.03
+NAME_VARIANT_STYLES = ("upper", "last_first", "initial_first")
 
 # Of refund tickets, the share still open/pending (an operational event --
 # the customer's complaint -- not yet reflected in ERP's own refund_date/
@@ -127,14 +152,34 @@ def dirty_country(rng: random.Random) -> str:
     return rng.choice(US_COUNTRY_VARIANTS) if code == "US" else code
 
 
+def dirty_name_variant(name: str, rng: random.Random) -> str:
+    """A plausible alternate rendering of the same person's name for a duplicate account.
+
+    Mirrors dirty_country()'s reasoned-variant approach (a handful of fixed,
+    plausible renderings) rather than random character noise -- a second
+    signup from the same real person plausibly types their own name a
+    different way (different casing, or last-name-first), not a typo.
+    """
+    style = rng.choice(NAME_VARIANT_STYLES)
+    first, _, last = name.partition(" ")
+    if style == "upper":
+        return name.upper()
+    if style == "last_first" and last:
+        return f"{last}, {first}"
+    if style == "initial_first" and last:
+        return f"{first[0]}. {last}"
+    return name.upper()
+
+
 def build_account(
     account_number: int,
+    customer_index: int,
     fake: Faker,
     rng: random.Random,
     person_by_index: dict[int, dict[str, Any]],
+    name_override: str | None = None,
 ) -> dict[str, Any]:
     """Create one CRM account row, keyed to a person via the shared identity pool."""
-    customer_index = rng.randint(1, 350)
     person = person_by_index[customer_index]
 
     created_date = fake.date_between(start_date=ACCOUNT_CREATED_START, end_date=ACCOUNT_CREATED_END)
@@ -143,7 +188,7 @@ def build_account(
     return {
         "account_id": f"ACCT-{account_number:05d}",
         "contact_email": person["email"],
-        "name": person["name"],
+        "name": name_override or person["name"],
         "country": dirty_country(rng),
         "created_date": created_date.isoformat(),
         "last_seen_date": last_seen_date.isoformat(),
@@ -282,13 +327,50 @@ def generate_extracts(
 
     person_by_index = {person["index"]: person for person in build_identity_pool(IDENTITY_POOL_SEED)}
 
-    accounts = [build_account(number, fake, rng, person_by_index) for number in range(1, account_count + 1)]
+    # One account per real person, without replacement -- see
+    # DUPLICATE_ACCOUNT_RATE above for why this is no longer a plain
+    # rng.randint(1, 350) draw per account. A shuffled assignment (not
+    # sequential index order) keeps account_number uncorrelated with
+    # customer_index, matching this project's existing "no digit
+    # relationship between systems' own keys" precedent.
+    shuffled_indices = list(range(1, 351))
+    rng.shuffle(shuffled_indices)
+    assigned_indices = shuffled_indices[:account_count]
+
+    accounts = [
+        build_account(number, customer_index, fake, rng, person_by_index)
+        for number, customer_index in enumerate(assigned_indices, start=1)
+    ]
+    next_account_number = len(accounts) + 1
+
+    # --account-count > 350 (not this project's default) falls back to
+    # sampling with replacement for the overflow -- an edge case the default
+    # run never exercises, kept simple rather than over-engineered.
+    while len(accounts) < account_count:
+        customer_index = rng.randint(1, 350)
+        accounts.append(build_account(next_account_number, customer_index, fake, rng, person_by_index))
+        next_account_number += 1
+
+    # Small, deliberate duplicate-account population (see
+    # DUPLICATE_ACCOUNT_RATE above): a bounded subset of already-assigned
+    # people get a second account with a name-formatting variant.
+    duplicate_count = round(len(assigned_indices) * DUPLICATE_ACCOUNT_RATE)
+    duplicate_source_indices = rng.sample(assigned_indices, min(duplicate_count, len(assigned_indices)))
+    for customer_index in duplicate_source_indices:
+        variant_name = dirty_name_variant(person_by_index[customer_index]["name"], rng)
+        accounts.append(
+            build_account(next_account_number, customer_index, fake, rng, person_by_index, variant_name)
+        )
+        next_account_number += 1
+
     account_ids = [account["account_id"] for account in accounts]
 
-    # Ghost account_ids are numbered past the real account range so they can never
-    # collide with a real ACCT-##### id, simulating accounts deleted from the CRM
-    # while their ticket history survived.
-    ghost_account_ids = [f"ACCT-{number:05d}" for number in range(account_count + 1, account_count + 1 + GHOST_ACCOUNT_POOL_SIZE)]
+    # Ghost account_ids are numbered past the real account range (including
+    # the deliberate duplicate accounts appended above) so they can never
+    # collide with a real ACCT-##### id, simulating accounts deleted from the
+    # CRM while their ticket history survived.
+    ghost_start = next_account_number
+    ghost_account_ids = [f"ACCT-{number:05d}" for number in range(ghost_start, ghost_start + GHOST_ACCOUNT_POOL_SIZE)]
     ghost_count = round(ticket_count * GHOST_ACCOUNT_RATE)
     ghost_positions = set(rng.sample(range(ticket_count), ghost_count))
 
