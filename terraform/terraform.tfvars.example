@@ -1,6 +1,6 @@
 # Copy this file to terraform.tfvars and fill in your own values.
 # terraform.tfvars is gitignored — never commit real values.
 
-snowflake_account          = "YOOJGIC-KW80562"
-snowflake_user             = "HOOVER365"
+snowflake_account          = "YOUR_ACCOUNT_LOCATOR"
+snowflake_user             = "YOUR_SNOWFLAKE_USERNAME"
 snowflake_private_key_path = "/path/to/rsa_key.p8"
