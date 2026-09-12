@@ -96,7 +96,7 @@ This is deliberately minimal: no retry counts, no replay orchestration, no resol
 
 ## ADR-003: dbt Snapshots (SCD2) over ERP's destructive order-status updates
 
-**Status:** Accepted (2026-09-10).
+**Status:** Accepted (2026-09-10); amended 2026-09-12 to state plainly what this snapshot does and doesn't prove -- see "Amendment (2026-09-12): scope of what this snapshot actually recovers" at the end of this ADR. No code changed; this is a documentation-only clarification requested during the data_gen/ freeze-gate review.
 **Phase:** Phase 3 (this PR — Issue #17). Builds on `stg_erp__order_items` (Issue #16, ADR-002) but is intentionally a separate model and a separate PR.
 
 ### Context
@@ -157,6 +157,14 @@ After the manual `UPDATE` (11 line-item rows affected per shard, matching those 
 - `erp_orders_status_snapshot` is the only place in this project with real order-status history; every other model still sees only the current (post-overwrite) status, exactly as the source provides.
 - The singular test `assert_erp_orders_status_snapshot_single_open_version` (`dbt/tests/`) encodes the invariant that actually matters for SCD2 correctness — never more than one currently-open row per order — rather than relying solely on schema tests, which can't express a cross-row condition like this.
 - Extending this to CRM or clickstream status-like fields in the future should follow the same shape: a narrow, grain-appropriate staging model feeding a `check`-strategy snapshot scoped to the specific column(s) that need history, not a blanket snapshot of an entire wide model.
+
+### Amendment (2026-09-12): scope of what this snapshot actually recovers
+
+Raised during the `data_gen/` freeze-gate review: this ADR's own language ("recover that history," "genuine order-status history") is easy to over-read as "this snapshot reconstructs the full history of every order's status changes." It doesn't, and it's worth stating plainly what it actually proves, since a reader of the gold-layer output has no other way to know the difference.
+
+**What this snapshot recovers:** the platform's own ingest-time knowledge of an order's status, going forward from whenever the snapshot first started running against it. Every run after that point diffs the source's current `order_status`/`fulfillment_state` against the last snapshotted state and writes a new row exactly when it changed — this is genuine, real history of what *this pipeline observed*, correctly timestamped to when it observed it (the manual-update demonstration above proves that mechanism end-to-end, not just asserts it).
+
+**What it does not recover:** anything about an order's status *before* the snapshot existed. `stg_erp__orders`/`US_ORDERS.csv`/`EU_ORDERS.csv` only ever expose the current, already-overwritten value — there is no earlier state anywhere in the source for the first snapshot run to diff against, so every order's first-ever snapshotted row is necessarily its state *as of that first run*, not its state as of when it was actually created or last changed. Concretely: this snapshot cannot answer "what was order US-000004's status on 2025-11-01" for any date before the snapshot began running, because that information was never captured by anything — it was destructively overwritten by the source before this pipeline ever had a chance to see it. A "what did we believe as of close night" query for a period before this snapshot's own start date is not a query this mechanism can answer, no matter how it's phrased against `erp_orders_status_snapshot` — the data to answer it genuinely does not exist upstream. This is not a limitation specific to this implementation; it's the fundamental floor of snapshotting a source that has already destroyed its own prior-state history, stated here so it isn't assumed away by a future consumer of this model.
 
 ## ADR-004: Web clickstream staging — VARIANT parsing, customer-key coalesce, pixel-retry dedup
 
