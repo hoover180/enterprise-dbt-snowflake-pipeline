@@ -13,6 +13,10 @@ staging models reference them by name.
    python data_gen/crm.py
    python data_gen/clickstream.py
    ```
+   All three share order/transaction identity via `data_gen/order_pool.py`
+   (see `docs/synthetic_data_spec.md`'s "Shared order pool" section) --
+   if you override `--orders-per-region` on one, pass the same value to
+   the other two, or their order references won't correlate.
 2. Set up Snowflake key-pair auth and the environment variables in
    `docs/dbt_profile_setup.md` ("Environment variables for
    `data_gen/load_raw.py`").
@@ -57,6 +61,9 @@ Source: `data/US_ORDERS.csv`
 | `customer_email`   | VARCHAR         |
 | `order_date`       | DATE            |
 | `order_status`     | VARCHAR         |
+| `ship_date`        | DATE            |
+| `refund_date`      | DATE            |
+| `refund_amount`    | NUMBER(12,2)    |
 | `sku`              | VARCHAR         |
 | `line_item_no`     | NUMBER          |
 | `quantity`         | NUMBER          |
@@ -76,6 +83,9 @@ Source: `data/EU_ORDERS.csv`
 | `contact_email`      | VARCHAR         |
 | `placed_on`          | DATE            |
 | `fulfillment_state`  | VARCHAR         |
+| `ship_date`          | DATE            |
+| `refund_date`        | DATE            |
+| `refund_amount`      | NUMBER(12,2)    |
 | `product_code`       | VARCHAR         |
 | `item_seq`           | NUMBER          |
 | `units`              | NUMBER          |
@@ -101,13 +111,15 @@ Source: `data/CRM_CUSTOMERS.csv`
 
 Source: `data/CRM_TICKETS.csv`
 
-| Column          | Type    |
-| ---------------- | -------- |
-| `ticket_id`       | VARCHAR  |
-| `account_id`      | VARCHAR  |
-| `category`        | VARCHAR  |
-| `created_date`    | DATE     |
-| `status`          | VARCHAR  |
+| Column            | Type    |
+| ------------------ | -------- |
+| `ticket_id`         | VARCHAR  |
+| `account_id`        | VARCHAR  |
+| `category`          | VARCHAR  |
+| `created_date`      | DATE     |
+| `status`            | VARCHAR  |
+| `claimed_amount`    | NUMBER(12,2) |
+| `order_reference`   | VARCHAR  |
 
 ### `DEV_ANALYTICS.RAW.RAW_WEB_EVENTS`
 
