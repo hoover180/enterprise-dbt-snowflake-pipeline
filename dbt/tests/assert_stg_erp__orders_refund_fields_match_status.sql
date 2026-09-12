@@ -12,5 +12,11 @@ select
     refund_amount
 from {{ ref('stg_erp__orders') }}
 where
-    (order_status = 'returned' and (refund_date is null or refund_amount is null))
-    or (order_status != 'returned' and (refund_date is not null or refund_amount is not null))
+    (
+        order_status = 'returned'
+        and (refund_date is null or refund_amount is null)
+    )
+    or (
+        order_status != 'returned'
+        and (refund_date is not null or refund_amount is not null)
+    )
