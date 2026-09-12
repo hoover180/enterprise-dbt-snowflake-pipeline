@@ -45,7 +45,18 @@ sources:
           - name: order_date
             description: Order date. DATE type with no time-of-day component.
           - name: order_status
-            description: Current (destructively overwritten) order status. No status history in the source.
+            description: >
+              Current (destructively overwritten) order status. No status
+              history in the source. pending/cancelled/shipped/delivered/
+              returned (ADR-009 in docs/data_modeling_decisions.md).
+          - name: ship_date
+            description: Recognition timestamp (ADR-009); null for pending/cancelled orders.
+          - name: refund_date
+            description: >
+              Set only for returned orders; deliberately allowed to extend
+              past order_date's AS_OF_DATE bound (ADR-009).
+          - name: refund_amount
+            description: The order's full recognized total, refunded in one lump sum; set only for returned orders (ADR-009).
           - name: sku
             description: Product identifier.
           - name: line_item_no
@@ -76,7 +87,18 @@ sources:
           - name: placed_on
             description: Order date. DATE type with no time-of-day component.
           - name: fulfillment_state
-            description: Current (destructively overwritten) order status. No status history in the source.
+            description: >
+              Current (destructively overwritten) order status. No status
+              history in the source. pending/cancelled/shipped/delivered/
+              returned (ADR-009 in docs/data_modeling_decisions.md).
+          - name: ship_date
+            description: Recognition timestamp (ADR-009); null for pending/cancelled orders.
+          - name: refund_date
+            description: >
+              Set only for returned orders; deliberately allowed to extend
+              past placed_on's AS_OF_DATE bound (ADR-009).
+          - name: refund_amount
+            description: The order's full recognized total, refunded in one lump sum; set only for returned orders (ADR-009).
           - name: product_code
             description: Product identifier.
           - name: item_seq

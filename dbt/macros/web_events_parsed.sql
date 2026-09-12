@@ -49,6 +49,18 @@
     there is no failure mode for TRY_CAST to guard against there. A missing
     key (the common case for customer_email -- see above) extracts to
     VARIANT NULL, which ::varchar carries through as NULL, not an error.
+
+    transaction_id / checkout_total / currency (ADR-009 in
+    docs/data_modeling_decisions.md) are new, purchase-only fields --
+    absent on the other three event types, same event-type-conditional
+    nullability as page_url/product_id/quantity/search_query above.
+    checkout_total follows quantity's precedent: it's a numeric value
+    written as a JSON string by data_gen/clickstream.py, so it gets the
+    same TRY_CAST-to-number treatment as every other type-sensitive VARIANT
+    field in this macro, not a plain cast. transaction_id/currency stay on
+    a plain ::varchar cast, matching event_id/session_id/event_type -- both
+    are always string-shaped when present, with no failure mode for
+    TRY_CAST to guard against.
 #}
 select
     event_data as raw_event_data,
@@ -62,7 +74,10 @@ select
     event_data:page_url::varchar as page_url,
     event_data:product_id::varchar as product_id,
     try_cast(event_data:quantity::varchar as number) as quantity,
-    event_data:search_query::varchar as search_query
+    event_data:search_query::varchar as search_query,
+    event_data:transaction_id::varchar as transaction_id,
+    try_cast(event_data:checkout_total::varchar as number(12, 2)) as checkout_total,
+    event_data:currency::varchar as currency
 from {{ source('web', 'raw_web_events') }}
 
 {% endmacro %}

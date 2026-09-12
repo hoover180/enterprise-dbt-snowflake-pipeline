@@ -92,3 +92,27 @@ models:
           seed, not a schema invariant.
         data_tests:
           - not_null
+      - name: claimed_amount
+        description: >
+          Populated only for category = 'refund' tickets (ADR-009 in
+          docs/data_modeling_decisions.md); null for every other category
+          -- the same category-conditional-nullability pattern this project
+          already uses for web's event-type-conditional fields. The amount
+          the customer/agent claimed is owed, anchored to the referenced
+          order's actual refund_amount but not guaranteed to match it
+          exactly: ~10% of posted (resolved/closed) refund tickets carry a
+          flat shipping/tax-like adjustment against ERP's own figure (see
+          ADR-009's "CRM" verification section for real matched examples).
+      - name: order_reference
+        description: >
+          Populated only for category = 'refund' tickets; null for every
+          other category. The order_id the ticket references -- always a
+          genuine attempt to reference the real, returned order behind the
+          complaint, but the reference itself resolves correctly only
+          ~90% of the time: ADR-009 documents a small tail referencing a
+          different, real (also-returned, in some cases) order, and a
+          smaller tail referencing an order that doesn't exist at all
+          (reusing the same ghost-order mechanism web's orphan
+          transaction_ids use) -- confirmed directly against the loaded
+          dataset in ADR-009's "CRM" section, not merely asserted from the
+          generator's target rates.

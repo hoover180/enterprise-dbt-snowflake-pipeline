@@ -71,8 +71,15 @@ sources:
               References crm_customers.account_id. Not guaranteed to
               exist there -- see "ghost accounts" above.
           - name: category
-            description: Ticket category.
+            description: >
+              Ticket category. billing/technical/account_access/shipping/
+              general_inquiry, plus refund (ADR-009 in
+              docs/data_modeling_decisions.md).
           - name: created_date
             description: Date the ticket was created.
           - name: status
             description: Current ticket status.
+          - name: claimed_amount
+            description: Populated only for category = 'refund' tickets; null otherwise (ADR-009).
+          - name: order_reference
+            description: Populated only for category = 'refund' tickets; null otherwise. Not guaranteed to resolve to a real, returned order (ADR-009).

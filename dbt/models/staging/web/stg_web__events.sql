@@ -46,5 +46,8 @@ select
     page_url,
     product_id,
     quantity,
-    search_query
+    search_query,
+    transaction_id,
+    checkout_total,
+    currency
 from deduplicated

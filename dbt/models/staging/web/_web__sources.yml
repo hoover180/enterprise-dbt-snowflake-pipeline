@@ -22,7 +22,8 @@ sources:
         description: >
           Newline-delimited JSON clickstream events at event grain, loaded
           into a single VARIANT column. Covers page_view, cart_addition,
-          and search_query event types.
+          search_query, and purchase (ADR-009 in
+          docs/data_modeling_decisions.md) event types.
 
           Freshness is keyed on Snowflake's warehouse-metadata LAST_ALTERED
           (no loaded_at_field configured), matching the erp/crm sources --
@@ -58,4 +59,5 @@ sources:
               or after) -- both keys are absent on an anonymous/uncaptured
               event. Type-specific fields: page_url (page_view),
               product_id/quantity (cart_addition), search_query
-              (search_query).
+              (search_query), transaction_id/checkout_total/currency
+              (purchase -- ADR-009 in docs/data_modeling_decisions.md).

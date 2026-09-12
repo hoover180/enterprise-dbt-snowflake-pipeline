@@ -20,5 +20,8 @@ select
     order_key,
     customer_id,
     order_status,
-    order_date
+    order_date,
+    ship_date,
+    refund_date,
+    refund_amount
 from keyed
