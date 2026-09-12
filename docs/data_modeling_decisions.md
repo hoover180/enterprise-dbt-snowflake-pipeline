@@ -223,7 +223,7 @@ Type-specific fields (`page_url`, `product_id`, `quantity`, `search_query`) are 
 
 ## ADR-005: Web clickstream incremental model — microbatch strategy, 3-day lookback, backfill
 
-**Status:** Accepted (2026-09-10); amended 2026-09-11 (see ADR-008) -- `stg_web__events.customer_id` (this model's pass-through `customer_id` column) is renamed `customer_email` and its underlying identity signal changes from an always-present exact key to a sparse, sometimes-dirty captured email. This ADR's own subject (microbatch strategy, lookback, backfill) is unaffected -- `event_timestamp`/`ingested_at`/batching logic don't depend on the identity column at all -- so nothing below needed correcting beyond this note.
+**Status:** Accepted (2026-09-10); amended 2026-09-11 (see ADR-008) -- `stg_web__events.customer_id` (this model's pass-through `customer_id` column) is renamed `customer_email` and its underlying identity signal changes from an always-present exact key to a sparse, sometimes-dirty captured email. This ADR's own subject (microbatch strategy, lookback, backfill) is unaffected -- `event_timestamp`/`ingested_at`/batching logic don't depend on the identity column at all -- so nothing below needed correcting beyond this note. Amended again 2026-09-12 -- the `lookback: 3` decision below didn't match `data_gen/clickstream.py`'s actual maximum late-arrival lag (4 days, not 3); this was a genuine, reproduced silent-drop bug, not a theoretical gap -- see "Amendment (2026-09-12)" at the end of this ADR.
 **Phase:** Phase 3B, second half (Issue #31). Builds on `stg_web__events` (Issue #29, ADR-004) without changing its logic, aside from one type correction found during this work (see "Found and fixed" below).
 
 ### Context
@@ -339,6 +339,32 @@ Verified directly afterward against `stg_web__events` (the canonical row count e
 - `event_id` is declared as this model's `unique_key` for documentation/intent even though Snowflake's microbatch `delete+insert` execution doesn't use it operationally; the real duplicate-safety property is event_timestamp's immutability per event_id (ADR-004) plus the `unique`/`not_null` schema tests and the new singular test. A future adapter change (or a future model on an adapter that uses `merge` for microbatch, e.g. dbt-postgres) would need `unique_key` for correctness on that adapter — it's cheap to declare now and correct to rely on later.
 - Because dbt-core requires `--event-time-start`/`--event-time-end` together, there is no way to invoke "a normal scheduled incremental run" against this historically-dated dataset without either fixing wall-clock time or passing an explicit, lookback-equivalent start. Any future demo or CI job against this model should pass both flags explicitly (as done here) rather than relying on default "now"-based behavior, which would silently no-op against 2025-dated data run in any later year.
 - `stg_web__events`'s `event_time` config (`event_timestamp`) is purely additive metadata for this microbatch consumer; `stg_web__events` itself is unchanged in materialization or row output (still a view, still 1,000 rows, still passing all of ADR-004's original tests).
+
+### Amendment (2026-09-12): `lookback: 3` didn't match the generator's actual maximum lateness
+
+**The gap.** This model's own inline comment claimed late-arriving events ("`ingested_at` up to 4 days after `event_timestamp`") "are absorbed by dbt's microbatch lookback" with `lookback: 3`. That claim was checked directly against `data_gen/clickstream.py` and was wrong: `build_ingested_at()` draws the late-arrival lag as `rng.randint(2, 4)` — uniformly 2, 3, or 4 days, not capped at 3. Per the "Lookback semantics, precisely" section above, `lookback: 3` reaches back 4 batches total (the batch containing the run's end time, plus 3 before it) — enough to recover a 3-day-late event (as ADR-005's original demonstration above did, using a 3-day-late event), but one batch short for a genuinely 4-day-late one: on the day such an event is finally ingested, its original event-day batch is 4 days back, one day outside a 4-batch window. This is a real, sequential-production-run defect, not an artifact of the backfill/demo methodology (bounded backfills via `--event-time-start`/`--event-time-end` bypass lookback entirely and are unaffected).
+
+**Real affected population**, confirmed directly against the current `DEV_ANALYTICS.RAW.RAW_WEB_EVENTS` (10,462 raw rows, reflecting the larger dataset from ADR-009's order-pool work — larger than ADR-005's original 1,050-row figure, but the same generator logic):
+
+| Lag (days) | Row count |
+| --- | --- |
+| 2 | 67 |
+| 3 | 67 |
+| 4 | 72 |
+| **Total late** | **206 (1.97% of all events)** |
+
+206/10,462 matches `LATE_EVENT_RATE = 0.02` closely, and the 67/67/72 split confirms the lag is uniform across 2/3/4 days as the generator's `randint(2, 4)` implies — not concentrated at one value. The 72 four-day-late events (0.69% of all events, 35% of the late population) are exactly the rows `lookback: 3` could never recover in a live, forward-advancing run.
+
+**Reproduction, mirroring this ADR's own demonstration methodology above** (a real event, deleted then reinserted to simulate "not yet arrived" then "arrived" — not a fabricated scenario): a real 4-day-late event was picked, `event_id = a64288e6-406a-4a65-a5b5-bb79de64b4f4` (`event_timestamp = 2025-09-13T06:29:51Z`, `ingested_at = 2025-09-17T06:29:51Z`).
+
+1. Deleted from `RAW_WEB_EVENTS` (10,462 → 10,461 rows). A full-history baseline was rebuilt with the then-current `lookback: 3` config (`--event-time-start 2025-01-01 --event-time-end 2026-01-01`, bypassing lookback per its documented semantics): 9,980 rows, target event absent, `event_date = 2025-09-13` at 37 rows.
+2. Reinserted byte-identical (10,461 → 10,462 rows) to simulate its real delayed arrival. `stg_web__events` (a view) immediately reflected it: target event present, `event_date = 2025-09-13` now at 38 rows.
+3. Ran `int_web_events_incremental` with `lookback: 3` still in place, using the exact 4-batch window a normal run on the event's ingestion day would touch: `dbt run --select int_web_events_incremental --event-time-start "2025-09-14" --event-time-end "2025-09-18"` → `Batch 1 of 4` (Sept 14) through `Batch 4 of 4` (Sept 17), all `OK`. **Confirmed dropped**, with real query output: `int_web_events_incremental` stayed at 9,980 rows, target event absent (`count_if(event_id = 'a64288e6-...') = 0`), `event_date = 2025-09-13` unchanged at 37 — even though the same event was already visible in `stg_web__events` at that point (38 for the same date). This is the bug, proven against real data, not merely predicted from reading the source.
+4. **Fix:** `lookback` changed from `3` to `4` in `int_web_events_incremental.sql` (`lookback: 4` reaches back 5 batches total — enough for the documented 4-day maximum).
+5. Reran the identical reinsert scenario (event still present in `RAW_WEB_EVENTS` from step 2) with the new config: `dbt run --select int_web_events_incremental --event-time-start "2025-09-13" --event-time-end "2025-09-18"` → now `Batch 1 of 5` (Sept 13) through `Batch 5 of 5` (Sept 17). **Confirmed picked up**: target event present exactly once, `event_date = 2025-09-13` now at 38 (matching `stg_web__events` exactly), total rows 9,981 (= 9,980 + 1), and the duplicate-check query (`group by event_id having count(*) > 1`) returned zero rows.
+6. **Full regression check:** `dbt build` (full project) afterward — `PASS=74 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=74`. A reconciliation anti-join against `stg_web__events` after the fix found exactly one discrepancy: one row with `event_date = 2024-12-31`, present in `stg_web__events` but absent from `int_web_events_incremental` — this is `begin: 2025-01-01` (this model's configured start of history) correctly excluding a pre-2025 row, an unrelated, pre-existing condition, not a symptom of the lookback bug.
+
+The model's own inline comment (previously repeating the same incorrect "lookback absorbs up to 4 days" claim as this ADR) is corrected in the same PR to state the real mechanism and cite `data_gen/clickstream.py`'s `randint(2, 4)` directly, so the comment and the config can't drift apart silently again.
 
 ## ADR-006: CRM staging — country standardization, and why "ghost accounts" is one mechanism, not two
 
