@@ -16,9 +16,9 @@ enterprise_dbt_snowflake:
   outputs:
     dev:
       type: snowflake
-      account: YOOJGIC-KW80562
-      user: hoover365
-      private_key_path: C:/Users/Mike/.snowflake/keys/rsa_key.p8
+      account: YOUR_ACCOUNT_LOCATOR
+      user: YOUR_SNOWFLAKE_USERNAME
+      private_key_path: /path/to/.snowflake/keys/rsa_key.p8
       role: TRANSFORMER_ROLE
       database: DEV_ANALYTICS
       warehouse: TRANSFORM_XS
@@ -33,8 +33,8 @@ field in [`dbt/dbt_project.yml`](../dbt/dbt_project.yml).
 
 | Field               | Value                                     | Why                                                                                                     |
 | ------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| `account`            | `YOOJGIC-KW80562`                           | Same account Terraform provisions against — see `terraform/variables.tf`.                                  |
-| `user`               | `hoover365`                                 | Same Snowflake user Terraform authenticates as — see `terraform/providers.tf`.                              |
+| `account`            | `YOUR_ACCOUNT_LOCATOR`                      | Same account Terraform provisions against — see `terraform/variables.tf`.                                  |
+| `user`               | `YOUR_SNOWFLAKE_USERNAME`                   | Same Snowflake user Terraform authenticates as — see `terraform/providers.tf`.                              |
 | `private_key_path`   | your local `.p8` path                      | Key-pair (JWT) auth, matching `terraform/providers.tf`'s `authenticator = "SNOWFLAKE_JWT"` pattern — no password auth anywhere in this project. |
 | `role`               | `TRANSFORMER_ROLE`                          | The least-privilege role Terraform grants CREATE TABLE/VIEW + warehouse USAGE to — see `terraform/roles.tf`. dbt should never run as `ACCOUNTADMIN`. |
 | `database`           | `DEV_ANALYTICS`                             | Local development target. `STAGE_ANALYTICS` and `PROD_ANALYTICS` are CI/promotion targets only (auto-deploy on merge to `main`, then a tagged-release approval gate — see `docs/workflow.md`'s Environment Promotion section and Phase 8); nothing here should point a local dev profile at them. |
@@ -44,7 +44,7 @@ field in [`dbt/dbt_project.yml`](../dbt/dbt_project.yml).
 ## Key-pair auth prerequisite
 
 This assumes you've already generated an RSA key pair and registered the
-public key on the `hoover365` Snowflake user (the same key Terraform's
+public key on your Snowflake user (the same key Terraform's
 `snowflake_private_key_path` variable points at). If you haven't:
 
 ```bash
@@ -56,7 +56,7 @@ Then, as `ACCOUNTADMIN` (or someone who can alter the user), register the
 public key:
 
 ```sql
-ALTER USER hoover365 SET RSA_PUBLIC_KEY='<contents of rsa_key.pub, header/footer stripped>';
+ALTER USER YOUR_SNOWFLAKE_USERNAME SET RSA_PUBLIC_KEY='<contents of rsa_key.pub, header/footer stripped>';
 ```
 
 ## Environment variables for `data_gen/load_raw.py`
@@ -68,8 +68,8 @@ their own connection config. Set these before running it (see
 
 | Variable                            | Default            | Notes                                        |
 | ------------------------------------ | ------------------- | ---------------------------------------------- |
-| `SNOWFLAKE_ACCOUNT`                   | *(required)*         | `YOOJGIC-KW80562`                              |
-| `SNOWFLAKE_USER`                      | *(required)*         | `hoover365`                                    |
+| `SNOWFLAKE_ACCOUNT`                   | *(required)*         | `YOUR_ACCOUNT_LOCATOR`                         |
+| `SNOWFLAKE_USER`                      | *(required)*         | `YOUR_SNOWFLAKE_USERNAME`                      |
 | `SNOWFLAKE_PRIVATE_KEY_PATH`           | *(required)*         | Same `.p8` path as the dbt profile above.       |
 | `SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`     | *(none)*             | Only needed if the key was generated with `-nocrypt` omitted. |
 | `SNOWFLAKE_ROLE`                      | `TRANSFORMER_ROLE`   |                                                |
@@ -82,9 +82,9 @@ The script loads a `.env` file in the repo root if one is present
 out of your shell profile if you prefer:
 
 ```text
-SNOWFLAKE_ACCOUNT=YOOJGIC-KW80562
-SNOWFLAKE_USER=hoover365
-SNOWFLAKE_PRIVATE_KEY_PATH=C:/Users/Mike/.snowflake/keys/rsa_key.p8
+SNOWFLAKE_ACCOUNT=YOUR_ACCOUNT_LOCATOR
+SNOWFLAKE_USER=YOUR_SNOWFLAKE_USERNAME
+SNOWFLAKE_PRIVATE_KEY_PATH=/path/to/.snowflake/keys/rsa_key.p8
 ```
 
 ## Verifying the setup

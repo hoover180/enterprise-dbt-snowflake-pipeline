@@ -48,7 +48,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ["page_view", "cart_addition", "search_query"]
+                values: ["page_view", "cart_addition", "search_query", "purchase"]
       - name: customer_email
         description: >
           Coalesced from the source's user_email (events before
@@ -71,6 +71,24 @@ models:
         description: Populated for event_type = cart_addition; null otherwise.
       - name: search_query
         description: Populated for event_type = search_query; null otherwise.
+      - name: transaction_id
+        description: >
+          Populated for event_type = purchase; null otherwise (ADR-009 in
+          docs/data_modeling_decisions.md). The order_pool order_id (real
+          or ghost) this checkout referenced -- not guaranteed to resolve
+          to a real ERP order: see
+          assert_stg_web__events_purchase_has_transaction_id for the
+          not-null-when-purchase invariant, and ADR-009's "order-coverage
+          gap rates" for why ~12% of purchase events are orphans by design.
+      - name: checkout_total
+        description: >
+          Populated for event_type = purchase; null otherwise. The
+          checkout-time total the customer saw, in `currency` -- not
+          guaranteed to equal ERP's recognized total for the same order
+          (see ADR-009's "checkout promo" mechanism for the ~4.5% of
+          matched orders where a promo fails backend validation).
+      - name: currency
+        description: Populated for event_type = purchase; null otherwise. Native currency of checkout_total, matching the referenced order's ERP currency.
 
   - name: stg_web__events_quarantine
     description: >

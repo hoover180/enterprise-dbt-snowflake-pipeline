@@ -2,7 +2,7 @@ locals {
   # snowflakedb/snowflake v2.x configures the account via organization_name +
   # account_name rather than a single "account" field (that field still
   # exists but is gated behind an experimental feature flag). Derive both
-  # from the single snowflake_account variable, e.g. "YOOJGIC-KW80562".
+  # from the single snowflake_account variable, e.g. "YOUR_ACCOUNT_LOCATOR".
   snowflake_account_parts = split("-", var.snowflake_account)
 }
 

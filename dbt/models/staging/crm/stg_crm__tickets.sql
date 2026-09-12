@@ -5,7 +5,9 @@ with tickets as (
         account_id,
         category,
         created_date,
-        status
+        status,
+        claimed_amount,
+        order_reference
     from {{ source('crm', 'crm_tickets') }}
 
 ),
@@ -23,6 +25,8 @@ select
     tickets.category,
     tickets.created_date,
     tickets.status,
+    tickets.claimed_amount,
+    tickets.order_reference,
     -- ~3-5% of tickets reference an account_id with no corresponding
     -- record in stg_crm__customers at all -- an orphaned account
     -- reference (see ADR-006). Flagged, not dropped: the ticket itself
