@@ -90,7 +90,20 @@ IDENTITY_CAPTURE_RATE_BY_EVENT_TYPE = {
 # programmatic, not manually typed.
 CAPTURED_EXACT_RATE = 0.55
 CAPTURED_TIER1_RATE = 0.25
-# Remaining 0.20 is tier 2 (genuine typo).
+# Remaining 0.20 is tier 2 (genuine typo), a portion of which becomes a
+# "collision" instead -- see COLLISION_RATE_WITHIN_TIER2 below.
+
+# Of customers who land in the tier-2 (typo) branch AND whose canonical
+# identity has a designated collision partner (identity_pool.py's
+# `collision_target_index`, sized by COLLISION_PAIR_COUNT there), this is
+# the chance the distortion is redirected to that partner's real canonical
+# email instead of an ordinary bounded, non-colliding typo. Most customers
+# have no collision partner at all, so this only ever fires for the small,
+# designated collision-source population -- most tier-2 typos remain
+# ordinary near-misses of the true customer, not collisions. See ADR
+# (freeze baseline) in docs/data_modeling_decisions.md for the realized
+# rate this produces against the full dataset.
+COLLISION_RATE_WITHIN_TIER2 = 1.0
 
 # Tier 1: trivial normalization noise that any lowercase+trim step resolves.
 TIER1_VARIANTS = ("upper", "title_local", "leading_space", "trailing_space")
@@ -212,8 +225,15 @@ def roll_identity_capture(
     canonical_email: str,
     rng: random.Random,
     all_emails: set[str],
+    collision_target_email: str | None = None,
 ) -> tuple[str | None, str, bool]:
-    """Shared capture/dirty-tier roll used by every event type, purchase included."""
+    """Shared capture/dirty-tier roll used by every event type, purchase included.
+
+    `collision_target_email` is non-None only for the small, designated
+    collision-source population (identity_pool.py's `collision_target_index`)
+    -- for everyone else, the tier-2 branch always falls through to the
+    ordinary bounded, non-colliding typo.
+    """
     captured = rng.random() < IDENTITY_CAPTURE_RATE_BY_EVENT_TYPE[event_type]
     identity_email = None
     dirt_tier = ""
@@ -223,9 +243,27 @@ def roll_identity_capture(
             identity_email, dirt_tier = canonical_email, "exact"
         elif dirt_roll < CAPTURED_EXACT_RATE + CAPTURED_TIER1_RATE:
             identity_email, dirt_tier = apply_trivial_normalization_noise(canonical_email, rng), "tier1"
+        elif collision_target_email is not None and rng.random() < COLLISION_RATE_WITHIN_TIER2:
+            identity_email, dirt_tier = collision_target_email, "collision"
         else:
             identity_email, dirt_tier = apply_single_character_typo(canonical_email, rng, all_emails), "tier2"
     return identity_email, dirt_tier, captured
+
+
+def match_status_for(captured: bool, dirt_tier: str) -> str:
+    """Ground-truth label for CLICKSTREAM_IDENTITY_TRUTH.csv's scoreable match_status column.
+
+    Distinguishes an ordinary resolvable identity (exact/tier1/tier2 -- a
+    fuzzy matcher should map this back to the true customer) from a designed
+    collision (the observed value is a DIFFERENT real customer's actual
+    canonical email -- a future scoring pass should grade a resolver that
+    merges this to that other customer as a false merge, not a hit), so
+    Phase 5A's eventual scorer can compute a false-merge rate, not just
+    recall. Blank when nothing was captured -- there is nothing to score.
+    """
+    if not captured:
+        return ""
+    return "possible_collision" if dirt_tier == "collision" else "match"
 
 
 def build_event(
@@ -234,6 +272,7 @@ def build_event(
     late: bool,
     email_by_index: dict[int, str],
     all_emails: set[str],
+    collision_target_email_by_index: dict[int, str | None],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Build one synthetic clickstream event, plus its identity-truth record."""
     event_date = EVENT_START + timedelta(days=rng.randrange((EVENT_END - EVENT_START).days + 1))
@@ -252,7 +291,9 @@ def build_event(
     # identity field at all regardless of whose traffic it truly is.
     customer_index = rng.randint(1, 350)
     canonical_email = email_by_index[customer_index]
-    identity_email, dirt_tier, captured = roll_identity_capture(event_type, canonical_email, rng, all_emails)
+    identity_email, dirt_tier, captured = roll_identity_capture(
+        event_type, canonical_email, rng, all_emails, collision_target_email_by_index.get(customer_index)
+    )
 
     event: dict[str, Any] = {
         "event_id": fake.uuid4(),
@@ -280,6 +321,7 @@ def build_event(
         "captured": captured,
         "dirt_tier": dirt_tier,
         "observed_value": identity_email or "",
+        "match_status": match_status_for(captured, dirt_tier),
     }
     return event, truth
 
@@ -290,6 +332,7 @@ def build_purchase_event(
     rng: random.Random,
     email_by_index: dict[int, str],
     all_emails: set[str],
+    collision_target_email_by_index: dict[int, str | None],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Build one purchase event from an order_pool order (real or ghost).
 
@@ -308,7 +351,9 @@ def build_purchase_event(
 
     customer_index = order["customer_index"]
     canonical_email = email_by_index[customer_index]
-    identity_email, dirt_tier, captured = roll_identity_capture("purchase", canonical_email, rng, all_emails)
+    identity_email, dirt_tier, captured = roll_identity_capture(
+        "purchase", canonical_email, rng, all_emails, collision_target_email_by_index.get(customer_index)
+    )
 
     event: dict[str, Any] = {
         "event_id": fake.uuid4(),
@@ -331,6 +376,7 @@ def build_purchase_event(
         "captured": captured,
         "dirt_tier": dirt_tier,
         "observed_value": identity_email or "",
+        "match_status": match_status_for(captured, dirt_tier),
     }
     return event, truth
 
@@ -357,7 +403,15 @@ def write_identity_truth_csv(path: Path, truth_records: list[dict[str, Any]]) ->
     dirtying, not by inspecting the dirtied output afterward.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames = ["event_id", "customer_index", "canonical_email", "captured", "dirt_tier", "observed_value"]
+    fieldnames = [
+        "event_id",
+        "customer_index",
+        "canonical_email",
+        "captured",
+        "dirt_tier",
+        "observed_value",
+        "match_status",
+    ]
     with path.open("w", newline="", encoding="utf-8") as output:
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
@@ -370,6 +424,7 @@ def build_purchase_events(
     fake: Faker,
     email_by_index: dict[int, str],
     all_emails: set[str],
+    collision_target_email_by_index: dict[int, str | None],
 ) -> list[tuple[dict[str, Any], dict[str, Any]]]:
     """Build every purchase event: one per real order with web coverage, plus orphans.
 
@@ -394,7 +449,7 @@ def build_purchase_events(
         orphan_orders.append(build_order(region, ghost_number))
 
     return [
-        build_purchase_event(order, fake, rng, email_by_index, all_emails)
+        build_purchase_event(order, fake, rng, email_by_index, all_emails, collision_target_email_by_index)
         for order in matched + orphan_orders
     ]
 
@@ -408,10 +463,16 @@ def generate_events(event_count: int, seed: int, orders_per_region: int, output_
     people = build_identity_pool(IDENTITY_POOL_SEED)
     email_by_index = {person["index"]: person["email"] for person in people}
     all_emails = {person["email"] for person in people}
+    collision_target_email_by_index: dict[int, str | None] = {
+        person["index"]: (
+            email_by_index[person["collision_target_index"]] if person["collision_target_index"] else None
+        )
+        for person in people
+    }
 
     late_count = max(1, round(event_count * LATE_EVENT_RATE))
     built = [
-        build_event(fake, rng, index < late_count, email_by_index, all_emails)
+        build_event(fake, rng, index < late_count, email_by_index, all_emails, collision_target_email_by_index)
         for index in range(event_count)
     ]
     events = [event for event, _truth in built]
@@ -420,7 +481,9 @@ def generate_events(event_count: int, seed: int, orders_per_region: int, output_
     duplicate_count = max(1, round(event_count * DUPLICATE_RATE))
     events.extend(dict(events[index]) for index in rng.sample(range(event_count), duplicate_count))
 
-    purchase_built = build_purchase_events(orders_per_region, rng, fake, email_by_index, all_emails)
+    purchase_built = build_purchase_events(
+        orders_per_region, rng, fake, email_by_index, all_emails, collision_target_email_by_index
+    )
     events.extend(event for event, _truth in purchase_built)
     truth_records.extend(truth for _event, truth in purchase_built)
 
