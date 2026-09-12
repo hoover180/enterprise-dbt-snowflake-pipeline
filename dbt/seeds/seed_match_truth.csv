@@ -1,351 +1,351 @@
 person_index,canonical_name,canonical_email,erp_us_customer_id,erp_eu_client_ref,crm_account_id,clickstream_true_event_count,clickstream_captured_event_count,clickstream_captured_variants,appears_in_erp,appears_in_crm,appears_in_clickstream
-1,James Lin,melissanorman@example.org,,EU-CLI-000004,ACCT-00048,2,0,,True,True,True
-2,Robert Leonard,oholmes@example.net,CUST-00002,EU-CLI-000184,ACCT-00131;ACCT-00233;ACCT-00238,2,0,,True,True,True
-3,Anthony Frazier,wardwendy@example.com,CUST-00003,,,2,0,,True,False,True
-4,Amy Holt,bwilkins@example.org,CUST-00004,EU-CLI-000202,,2,0,,True,False,True
-5,Tiffany Scott,fkidd@example.org,,EU-CLI-000131,,3,0,,True,False,True
-6,Janice Pratt,fullernathan@example.com,CUST-00006,,ACCT-00082;ACCT-00170;ACCT-00260,1,0,,True,True,True
-7,Sherry Stone,ryanking@example.com,CUST-00007,EU-CLI-000134,ACCT-00017;ACCT-00055,5,0,,True,True,True
-8,Betty Ellis,marc88@example.org,,EU-CLI-000118,,1,0,,True,False,True
-9,Todd Reynolds,mkelly@example.com,CUST-00009,EU-CLI-000207,ACCT-00073,2,0,,True,True,True
-10,Dana Martinez,andersonpaula@example.com,CUST-00010,EU-CLI-000195,ACCT-00063,6,0,,True,True,True
-11,Timothy Nunez,karenjefferson@example.org,CUST-00011,EU-CLI-000067,ACCT-00114,4,0,,True,True,True
-12,Mrs. Mary Nunez,jwoodward@example.com,CUST-00012,EU-CLI-000058,ACCT-00151;ACCT-00200;ACCT-00261,2,1,JWOODWARD@EXAMPLE.COM,True,True,True
-13,Savannah Lopez,nmiller@example.org,,,ACCT-00328,4,0,,False,True,True
-14,Shannon Barnes,nuneztheresa@example.org,CUST-00014,,ACCT-00088;ACCT-00132,2,0,,True,True,True
-15,Roy Foster,megan92@example.com,,EU-CLI-000043,ACCT-00013;ACCT-00033;ACCT-00097,1,0,,True,True,True
-16,Thomas Jackson,fsmith@example.org,CUST-00016,,ACCT-00134;ACCT-00301,1,0,,True,True,True
-17,Jacob Bean,ericahobbs@example.net,CUST-00017,EU-CLI-000156,ACCT-00096;ACCT-00109,4,0,,True,True,True
-18,Melanie Dixon,thompsonjill@example.com,CUST-00018,,ACCT-00062,4,0,,True,True,True
-19,Taylor Cook,sgilmore@example.org,,EU-CLI-000262,ACCT-00050,0,0,,True,True,False
-20,Stephen Mills,huffmancynthia@example.com,CUST-00020,,ACCT-00209,2,0,,True,True,True
-21,Jeffrey Smith,millerbarbara@example.com,,EU-CLI-000114,,0,0,,True,False,False
-22,Wendy Kim,shawnbuchanan@example.com,CUST-00022,EU-CLI-000212,,5,0,,True,False,True
-23,Timothy Gray,obrown@example.com,CUST-00023,,,2,1,OBROWN@EXAMPLE.COM,True,False,True
-24,Thomas Smith,beckyespinoza@example.org,CUST-00024,EU-CLI-000144,,2,0,,True,False,True
-25,Jonathan Miller,avilaronald@example.com,CUST-00025,EU-CLI-000129,ACCT-00189;ACCT-00214,8,2,avilaronald@example.com;avialronald@example.com,True,True,True
-26,Melissa Williams,george11@example.com,CUST-00026,EU-CLI-000215,ACCT-00018,1,0,,True,True,True
-27,Michelle Smith,leonard61@example.org,CUST-00027,EU-CLI-000001,ACCT-00041;ACCT-00315,3,0,,True,True,True
-28,Dalton Baker,jackie04@example.org,CUST-00028,,,3,0,,True,False,True
-29,Wayne Perez,haley55@example.net,CUST-00029,EU-CLI-000113,ACCT-00116;ACCT-00158,4,0,,True,True,True
-30,Dan Turner,reillylori@example.net,CUST-00030,EU-CLI-000024,ACCT-00009;ACCT-00329,2,0,,True,True,True
-31,Deborah Snow,pmoreno@example.com,CUST-00031,,ACCT-00188,4,0,,True,True,True
-32,Tracy Lopez,shawn89@example.net,CUST-00032,EU-CLI-000163,ACCT-00070,2,0,,True,True,True
-33,Justin Mcmillan,mmoore@example.org,CUST-00033,EU-CLI-000142,ACCT-00154;ACCT-00340,2,0,,True,True,True
-34,Elizabeth Martinez,rmorales@example.org,CUST-00034,EU-CLI-000250,,0,0,,True,False,False
-35,Cesar Simmons,yorkfrank@example.com,CUST-00035,EU-CLI-000052,,4,0,,True,False,True
-36,Alejandro Carpenter,christopher05@example.net,CUST-00036,EU-CLI-000083,,2,0,,True,False,True
-37,Daniel Braun,jeffreywest@example.com,CUST-00037,,ACCT-00164,2,0,,True,True,True
-38,Cheryl Harris,ashley02@example.net,CUST-00038,EU-CLI-000260,ACCT-00192,3,1,  ashley02@example.net,True,True,True
-39,Michael Gomez,katrina03@example.com,CUST-00039,,ACCT-00079,3,1,katina03@example.com,True,True,True
-40,Tina Abbott,heather07@example.org,CUST-00040,EU-CLI-000003,,2,0,,True,False,True
-41,Richard Barnes,olivia20@example.org,CUST-00041,EU-CLI-000111,,2,0,,True,False,True
-42,David Mills,cookjanet@example.org,CUST-00042,,ACCT-00115,2,0,,True,True,True
-43,Jennifer Alexander,luiscardenas@example.org,,EU-CLI-000155,ACCT-00076,1,0,,True,True,True
-44,Justin Ellis,nphillips@example.net,,,,1,0,,False,False,True
-45,Phyllis Shah,dayian@example.net,,,,0,0,,False,False,False
-46,Ashley Hernandez,cynthia23@example.org,,,ACCT-00259;ACCT-00264;ACCT-00326,2,0,,False,True,True
-47,Mathew Young,kbrown@example.org,CUST-00047,,,1,0,,True,False,True
-48,Lindsey Harrison,dharris@example.org,,EU-CLI-000248,,0,0,,True,False,False
-49,Christina Stewart,shelby77@example.com,CUST-00049,EU-CLI-000057,,3,0,,True,False,True
-50,Kristen Horn,joannaolsen@example.org,CUST-00050,EU-CLI-000070,ACCT-00220;ACCT-00279,2,0,,True,True,True
-51,Diane Martin,twalters@example.net,CUST-00051,EU-CLI-000149,ACCT-00195,2,0,,True,True,True
-52,Maurice Fernandez,forbeshannah@example.org,,EU-CLI-000227,,4,1,forbeshannah@example.org,True,False,True
-53,Clayton Goodman,irogers@example.org,,,,2,0,,False,False,True
-54,Kyle Lopez,ilopez@example.org,CUST-00054,EU-CLI-000016,ACCT-00302,3,0,,True,True,True
-55,Alyssa Watson,qwatkins@example.com,CUST-00055,EU-CLI-000236,,4,3,qwatkins@example.com;QWATKINS@EXAMPLE.COM,True,False,True
-56,Lisa Torres,bentleyjohnathan@example.org,CUST-00056,EU-CLI-000007,ACCT-00065,3,1,benrleyjohnathan@example.org,True,True,True
-57,Brandon Ramirez,greenxavier@example.com,CUST-00057,,ACCT-00207;ACCT-00288,3,1,  greenxavier@example.com,True,True,True
-58,Monica Frazier,sarabrown@example.com,CUST-00058,EU-CLI-000214,ACCT-00224,5,0,,True,True,True
-59,Ronald Orozco,penny31@example.org,,EU-CLI-000128,,3,1,penny31@example.org,True,False,True
-60,Gina Stark,corey84@example.org,CUST-00060,,ACCT-00339,0,0,,True,True,False
-61,Stephen Levine,travismorales@example.org,CUST-00061,EU-CLI-000174,ACCT-00316,5,0,,True,True,True
-62,Mia Smith,johnsonjustin@example.net,CUST-00062,EU-CLI-000229,ACCT-00001;ACCT-00111;ACCT-00327,2,0,,True,True,True
-63,Leslie Leonard,adamjensen@example.com,CUST-00063,EU-CLI-000190,ACCT-00159,5,1,aadmjensen@example.com,True,True,True
-64,Susan Kelly,leslieorozco@example.org,CUST-00064,EU-CLI-000084,,2,0,,True,False,True
-65,Lauren Mayo,benjamingalloway@example.org,CUST-00065,EU-CLI-000076,ACCT-00125,4,1,benjamingalloway@example.org,True,True,True
-66,Bruce Callahan,johngreer@example.com,CUST-00066,,,2,0,,True,False,True
-67,Curtis Mercado,garrett39@example.org,CUST-00067,EU-CLI-000069,ACCT-00022,1,0,,True,True,True
-68,Cassie Meyers,avilakristy@example.org,CUST-00068,EU-CLI-000096,ACCT-00005;ACCT-00031,6,2,avilakristy@example.org;avilakisty@example.org,True,True,True
-69,Carmen Burns,nathanhill@example.com,CUST-00069,EU-CLI-000205,,2,1,nathanihll@example.com,True,False,True
-70,Ashley Johnson,dpalmer@example.com,,EU-CLI-000196,ACCT-00110;ACCT-00314,7,3,dpqlmer@example.com;dpalmer@example.com,True,True,True
-71,Patrick Howard MD,gwilliams@example.com,CUST-00071,EU-CLI-000124,ACCT-00059,4,1,Gwilliams@example.com,True,True,True
-72,Katrina Moore,melissafernandez@example.net,CUST-00072,EU-CLI-000071,ACCT-00274,4,1,melissafernandez@example.net,True,True,True
-73,Aaron Berg,carlsonlori@example.org,,EU-CLI-000130,ACCT-00171,4,1,carlsonlori@example.org,True,True,True
-74,David Massey,ataylor@example.com,CUST-00074,,ACCT-00297,5,1,ataylor@example.com,True,True,True
-75,Andrew Case,ashlee90@example.net,CUST-00075,EU-CLI-000063,ACCT-00072;ACCT-00292,7,1,ashlee90@example.net,True,True,True
-76,Julie Sullivan,kdiaz@example.com,CUST-00076,EU-CLI-000091,ACCT-00208;ACCT-00270,4,1,kdiaz@example.com,True,True,True
-77,Katherine Cortez,duncanriley@example.net,CUST-00077,,ACCT-00197,2,1,duncariley@example.net,True,True,True
-78,Sandra Stewart,wilsonashley@example.net,CUST-00078,EU-CLI-000117,ACCT-00046;ACCT-00190,6,2,wilsonashley@example.net;WILSONASHLEY@EXAMPLE.NET,True,True,True
-79,Matthew Lee,vorr@example.net,CUST-00079,EU-CLI-000022,ACCT-00089,2,0,,True,True,True
-80,Robert Wheeler,fwashington@example.com,CUST-00080,EU-CLI-000095,ACCT-00101;ACCT-00187,4,0,,True,True,True
-81,Allison Montgomery,mfitzpatrick@example.org,CUST-00081,EU-CLI-000254,ACCT-00231,3,1,mfitzpatrick@example.org,True,True,True
-82,Daniel Meyer,nshaw@example.net,CUST-00082,,ACCT-00155,0,0,,True,True,False
-83,Jack Smith,hbutler@example.com,CUST-00083,EU-CLI-000073,ACCT-00283,1,1,hbutler@example.com  ,True,True,True
-84,Seth Schultz,mcleandwayne@example.com,CUST-00084,EU-CLI-000160,,3,0,,True,False,True
-85,Jeremy Peck,mmcbride@example.org,CUST-00085,EU-CLI-000257,ACCT-00165,5,2,mmcbride@example.org  ;mmcbide@example.org,True,True,True
-86,Stephen Fitzpatrick,brittany67@example.com,,EU-CLI-000125,,5,0,,True,False,True
-87,Ryan Davis,lpierce@example.org,CUST-00087,EU-CLI-000021,,2,0,,True,False,True
-88,Christina Richardson,wesleywebb@example.com,,EU-CLI-000246,ACCT-00047;ACCT-00080,2,0,,True,True,True
-89,Alex Cook,robertschristopher@example.com,CUST-00089,,ACCT-00035;ACCT-00136,1,0,,True,True,True
-90,Cameron Ingram,joethornton@example.com,CUST-00090,,,3,1,Joethornton@example.com,True,False,True
-91,John Ramirez,ocortez@example.net,CUST-00091,,ACCT-00150,0,0,,True,True,False
-92,Daniel Romero,jennifermurray@example.com,CUST-00092,EU-CLI-000027,ACCT-00026,2,0,,True,True,True
-93,Courtney Gonzalez,clarkdaniel@example.net,CUST-00093,EU-CLI-000137,ACCT-00196,2,1,clarkdaniel@example.net,True,True,True
-94,Keith Moore,mnguyen@example.com,CUST-00094,,ACCT-00068;ACCT-00146;ACCT-00350,4,0,,True,True,True
-95,Johnny Anthony,michellegibson@example.org,,,,5,1,michellegibson@example.org  ,False,False,True
-96,Joyce Harmon,roberto82@example.net,CUST-00096,EU-CLI-000106,ACCT-00038;ACCT-00042,0,0,,True,True,False
-97,Stuart Simpson,ukaufman@example.org,CUST-00097,,ACCT-00106;ACCT-00306,3,1,ukaufman@example.org,True,True,True
-98,Sandra Gillespie,alee@example.org,CUST-00098,,ACCT-00273,1,0,,True,True,True
-99,Benjamin Mcintosh,hmercado@example.net,CUST-00099,EU-CLI-000147,ACCT-00122;ACCT-00318,4,1,hmdrcado@example.net,True,True,True
-100,Sarah Case,tiffanygraham@example.com,CUST-00100,EU-CLI-000164,,1,0,,True,False,True
-101,Amy Padilla,ndavis@example.org,,EU-CLI-000050,,3,2,Ndavis@example.org,True,False,True
-102,Jennifer Ruiz,upowell@example.net,CUST-00102,,,1,1,upowell@example.net,True,False,True
-103,Steve Martin,harrisjoshua@example.net,CUST-00103,EU-CLI-000002,ACCT-00157;ACCT-00215,4,0,,True,True,True
-104,Jennifer Fitzgerald,ricky25@example.com,CUST-00104,EU-CLI-000064,ACCT-00163;ACCT-00286,0,0,,True,True,False
-105,Theresa Hogan,maryfernandez@example.org,CUST-00105,EU-CLI-000060,ACCT-00333,3,0,,True,True,True
-106,Mrs. Renee Ramirez,melissagraham@example.net,CUST-00106,EU-CLI-000154,,6,0,,True,False,True
-107,Chris Davis,amanda18@example.org,CUST-00107,EU-CLI-000065,,3,1,  amanda18@example.org,True,False,True
-108,Brenda Huffman,morganvaldez@example.net,CUST-00108,EU-CLI-000151,,5,0,,True,False,True
-109,Robert Hernandez,john84@example.com,,EU-CLI-000182,,1,1,john84@example.com,True,False,True
-110,Philip Cline,caitlingraham@example.org,CUST-00110,EU-CLI-000036,ACCT-00199,3,0,,True,True,True
-111,Victor Obrien,peterchurch@example.com,CUST-00111,,ACCT-00334,2,0,,True,True,True
-112,Gary Meyer,deckerfrancisco@example.com,,EU-CLI-000005,ACCT-00104,5,1,deckerfrancico@example.com,True,True,True
-113,William Kennedy,kevin69@example.net,CUST-00113,,,1,0,,True,False,True
-114,Katie Floyd,kellyjill@example.net,,EU-CLI-000252,,3,0,,True,False,True
-115,Beth Davis,mreynolds@example.net,CUST-00115,,ACCT-00008;ACCT-00090;ACCT-00120;ACCT-00278,3,1,Mreynolds@example.net,True,True,True
-116,Patrick Valencia,josephmiller@example.com,CUST-00116,EU-CLI-000171,ACCT-00348,6,0,,True,True,True
-117,Linda Harris,travisdaniels@example.com,CUST-00117,EU-CLI-000249,,4,0,,True,False,True
-118,Mr. Robert Haney,timothybenson@example.org,CUST-00118,EU-CLI-000211,,2,0,,True,False,True
-119,Mariah Simmons,corymorgan@example.net,CUST-00119,EU-CLI-000158,,0,0,,True,False,False
-120,Ashley Garcia,richardjefferson@example.org,CUST-00120,EU-CLI-000013,ACCT-00160,0,0,,True,True,False
-121,Garrett Solomon,oconnordonald@example.org,CUST-00121,EU-CLI-000258,ACCT-00043;ACCT-00290,1,1,oconnordonald@example.org,True,True,True
-122,Michael Jones,amandaobrien@example.com,CUST-00122,EU-CLI-000048,,6,0,,True,False,True
-123,Chad Hill,belljason@example.com,CUST-00123,EU-CLI-000028,ACCT-00112,3,0,,True,True,True
-124,Timothy Bennett,mackenzie72@example.org,CUST-00124,EU-CLI-000170,ACCT-00234,2,0,,True,True,True
-125,Jessica Patrick,ellisjustin@example.net,,EU-CLI-000150,ACCT-00086,4,0,,True,True,True
-126,Todd Craig,jason94@example.net,,EU-CLI-000261,,2,0,,True,False,True
-127,Jill Collins,stephanie16@example.org,CUST-00127,EU-CLI-000179,ACCT-00004,5,1,Stephanie16@example.org,True,True,True
-128,Patrick Franklin,holmesashley@example.org,,EU-CLI-000086,ACCT-00285,2,0,,True,True,True
-129,Paul Ellis,jonespaul@example.com,,,ACCT-00021;ACCT-00181,5,0,,False,True,True
-130,Brian Obrien,raymond41@example.org,,EU-CLI-000135,ACCT-00102;ACCT-00148,4,1,raymon4d1@example.org,True,True,True
-131,Ronald Collins,ucasey@example.net,CUST-00131,EU-CLI-000216,,3,0,,True,False,True
-132,Lisa Hart,chris17@example.com,CUST-00132,,,3,1,Chris17@example.com,True,False,True
-133,William Avila,sbradley@example.com,CUST-00133,,,1,0,,True,False,True
-134,Jason Stevens DDS,dana88@example.com,,EU-CLI-000241,,1,1,DANA88@EXAMPLE.COM,True,False,True
-135,Nicole Richardson,ivalentine@example.com,CUST-00135,EU-CLI-000009,ACCT-00152,4,0,,True,True,True
-136,Juan Castillo,cervantesdarryl@example.org,CUST-00136,EU-CLI-000107,,3,0,,True,False,True
-137,Nicholas Peterson,dawnpruitt@example.com,CUST-00137,EU-CLI-000093,ACCT-00015;ACCT-00141,5,1,dawnpruitt@example.com,True,True,True
-138,Stephanie Dominguez,ortizchristopher@example.org,,EU-CLI-000020,,3,0,,True,False,True
-139,Joshua Davis Jr.,uhicks@example.org,,EU-CLI-000193,,5,0,,True,False,True
-140,Michael Mason,patricia65@example.com,,EU-CLI-000197,,3,1,patricia65@example.com,True,False,True
-141,Theresa Andrews,judy18@example.com,CUST-00141,EU-CLI-000079,,5,0,,True,False,True
-142,Angela Sullivan,mgibson@example.com,CUST-00142,,ACCT-00023;ACCT-00222;ACCT-00226,3,0,,True,True,True
-143,Ashley Henderson,barnescaitlin@example.com,CUST-00143,EU-CLI-000259,ACCT-00183,0,0,,True,True,False
-144,Andrew Leach,bdixon@example.net,CUST-00144,EU-CLI-000245,,2,1,Bdixon@example.net,True,False,True
-145,Craig Harris,wsimmons@example.org,CUST-00145,,ACCT-00174,1,0,,True,True,True
-146,Destiny Moody,goodwinnicholas@example.com,CUST-00146,EU-CLI-000068,,1,0,,True,False,True
-147,Joseph Marks,coxlisa@example.org,,EU-CLI-000169,ACCT-00201,1,0,,True,True,True
-148,Linda Smith,zcook@example.org,CUST-00148,EU-CLI-000049,ACCT-00029,2,0,,True,True,True
-149,Natalie Ramos,ryan35@example.org,CUST-00149,EU-CLI-000100,ACCT-00133,4,1,RYAN35@EXAMPLE.ORG,True,True,True
-150,Seth Baker,michael93@example.org,CUST-00150,EU-CLI-000094,ACCT-00319,2,1,michael93@example.org  ,True,True,True
-151,Tony Keller,sherri47@example.org,CUST-00151,,ACCT-00045;ACCT-00143,2,0,,True,True,True
-152,Kristy Mercado,fcole@example.net,,EU-CLI-000238,ACCT-00223;ACCT-00268,4,1,fcole@example.net,True,True,True
-153,Mark Lambert,tshaw@example.com,,,ACCT-00085;ACCT-00307,1,0,,False,True,True
-154,Brittany Garza,longryan@example.com,CUST-00154,,,1,0,,True,False,True
-155,Colleen Page,ortegachristina@example.net,,EU-CLI-000127,ACCT-00126,2,1,ortegachristina@example.net,True,True,True
-156,John Donaldson,jeffery64@example.org,CUST-00156,EU-CLI-000167,,0,0,,True,False,False
-157,Teresa Green,williambooth@example.org,CUST-00157,,ACCT-00281,6,0,,True,True,True
-158,Michael Finley,christina81@example.org,,EU-CLI-000175,,1,0,,True,False,True
-159,Paul Lee,alyssa42@example.net,CUST-00159,EU-CLI-000255,ACCT-00240,2,0,,True,True,True
-160,Michael Stanley,marcusmartin@example.net,CUST-00160,EU-CLI-000168,,1,0,,True,False,True
-161,Virginia Sanchez,lawsonzachary@example.com,CUST-00161,EU-CLI-000220,ACCT-00284,5,1,lawsonzachary@example.com,True,True,True
-162,Sierra Townsend,natalie51@example.org,CUST-00162,EU-CLI-000153,ACCT-00083;ACCT-00206,0,0,,True,True,False
-163,Michael Floyd,ryanpena@example.com,CUST-00163,,ACCT-00249,2,1,ryanpena@example.com  ,True,True,True
-164,Lisa Ford,pmiller@example.org,CUST-00164,,ACCT-00113;ACCT-00140,3,1,  pmiller@example.org,True,True,True
-165,Veronica Flores,idiaz@example.org,CUST-00165,EU-CLI-000087,ACCT-00024;ACCT-00093;ACCT-00211;ACCT-00341,2,0,,True,True,True
-166,Beverly Hernandez,derrick71@example.net,CUST-00166,EU-CLI-000224,ACCT-00129;ACCT-00305;ACCT-00321,6,1,derrick71@example.net,True,True,True
-167,Kevin Barrett,leeamber@example.org,,,,6,1,leeamber@example.org,False,False,True
-168,Evan Thompson,yprice@example.net,,EU-CLI-000192,ACCT-00191;ACCT-00296,1,0,,True,True,True
-169,Tara Cunningham MD,lindahoffman@example.com,,EU-CLI-000122,ACCT-00130;ACCT-00180;ACCT-00227,5,1,kindahoffman@example.com,True,True,True
-170,Brian Owens,robertheath@example.net,CUST-00170,EU-CLI-000092,,3,0,,True,False,True
-171,Michael Johnson,reyespatrick@example.net,CUST-00171,EU-CLI-000112,ACCT-00248,4,1,reyespatrick@example.net,True,True,True
-172,Sharon Wade,jonathanoneal@example.org,CUST-00172,EU-CLI-000040,ACCT-00137,1,0,,True,True,True
-173,Timothy Vega,mccarthysarah@example.org,CUST-00173,EU-CLI-000157,ACCT-00172,4,0,,True,True,True
-174,Sean Hall,john04@example.com,CUST-00174,EU-CLI-000097,,2,0,,True,False,True
-175,Michael Ellis,maria12@example.org,CUST-00175,,ACCT-00194;ACCT-00253,2,1,mari12@example.org,True,True,True
-176,Patricia Ellis,wflynn@example.net,CUST-00176,EU-CLI-000189,,2,0,,True,False,True
-177,Betty Martinez,jason11@example.net,,,ACCT-00256,1,0,,False,True,True
-178,Benjamin Torres,mcleanchristopher@example.net,CUST-00178,EU-CLI-000172,,4,1,mcleanchristopher@example.net,True,False,True
-179,Mary Rocha,keith18@example.com,CUST-00179,EU-CLI-000126,ACCT-00051;ACCT-00064,3,1,keith18@example.com,True,True,True
-180,Michael Chavez,jpaul@example.org,,EU-CLI-000219,,1,0,,True,False,True
-181,Dustin Wilson,daniel75@example.org,CUST-00181,EU-CLI-000054,ACCT-00282,6,2,daniel75@example.org,True,True,True
-182,Anthony Carter,comptonmatthew@example.org,CUST-00182,EU-CLI-000039,,2,0,,True,False,True
-183,Austin Moreno,lauren25@example.org,,EU-CLI-000159,ACCT-00028;ACCT-00205,1,0,,True,True,True
-184,Robert Bennett,aprilmiller@example.com,CUST-00184,EU-CLI-000201,ACCT-00228,5,1,APRILMILLER@EXAMPLE.COM,True,True,True
-185,Crystal Berry,anthonyjohnson@example.net,CUST-00185,EU-CLI-000186,ACCT-00010;ACCT-00216,3,2,anthonyjohnson@example.net;Anthonyjohnson@example.net,True,True,True
-186,Richard Ray,nthomas@example.com,CUST-00186,EU-CLI-000136,ACCT-00044,2,0,,True,True,True
-187,Maurice Wu,cannonkelsey@example.net,,EU-CLI-000030,ACCT-00251,5,0,,True,True,True
-188,Hannah Ross,dixonmichael@example.org,CUST-00188,EU-CLI-000239,ACCT-00244,4,0,,True,True,True
-189,Christina Frey,ncompton@example.org,CUST-00189,,,2,0,,True,False,True
-190,Jimmy Miller,danielshah@example.com,CUST-00190,EU-CLI-000204,ACCT-00075,6,1,danielshah@example.com,True,True,True
-191,Kristina Hart,courtneymack@example.com,CUST-00191,EU-CLI-000231,ACCT-00095;ACCT-00177,3,1,courtneymack@example.com,True,True,True
-192,Amanda Newman,paul91@example.org,CUST-00192,EU-CLI-000200,,4,0,,True,False,True
-193,Corey Wood,durhamcole@example.org,CUST-00193,EU-CLI-000077,,4,0,,True,False,True
-194,Jeffrey Evans,colemanjessica@example.org,CUST-00194,EU-CLI-000075,ACCT-00258;ACCT-00298,1,0,,True,True,True
-195,Phillip Clark,laurapalmer@example.com,CUST-00195,EU-CLI-000032,ACCT-00069,7,2,laurapalmer@example.com;laurapalmer@example.com  ,True,True,True
-196,Sara Lane,cynthia84@example.com,CUST-00196,EU-CLI-000047,,0,0,,True,False,False
-197,Daniel Barnes,cathywatson@example.org,CUST-00197,EU-CLI-000181,,5,0,,True,False,True
-198,Benjamin Ballard,catherine97@example.net,CUST-00198,,ACCT-00016;ACCT-00081,3,1,catherine97@example.net  ,True,True,True
-199,Misty Gross,robinsonsarah@example.com,CUST-00199,EU-CLI-000110,ACCT-00032,1,1,robinsonsarha@example.com,True,True,True
-200,Valerie Wilson,jeffersonkelsey@example.org,CUST-00200,,,2,1,jeffersonkelsey@example.org,True,False,True
-201,Maria Hernandez,zwilliams@example.com,CUST-00201,,ACCT-00269,4,0,,True,True,True
-202,Mark Rhodes,ashley40@example.com,CUST-00202,EU-CLI-000006,ACCT-00094,6,0,,True,True,True
-203,Stacey Gay,williamskirsten@example.org,CUST-00203,EU-CLI-000183,,1,0,,True,False,True
-204,Anthony Holder,kimberly10@example.net,CUST-00204,EU-CLI-000152,ACCT-00002;ACCT-00239,3,0,,True,True,True
-205,Brianna Douglas,tammy29@example.com,CUST-00205,EU-CLI-000044,ACCT-00168,2,1,tammy29@example.com,True,True,True
-206,Holly Bowen,riverarobert@example.net,CUST-00206,,ACCT-00105,3,0,,True,True,True
-207,Eric Thompson,guerrerodarlene@example.com,CUST-00207,,ACCT-00107;ACCT-00330,3,1,guerrerodarlene@example.com,True,True,True
-208,Gina Dixon,david65@example.org,CUST-00208,EU-CLI-000078,ACCT-00030;ACCT-00242,2,1,davdi65@example.org,True,True,True
-209,Kevin Pacheco,ariana31@example.net,CUST-00209,EU-CLI-000263,ACCT-00336,3,1,airana31@example.net,True,True,True
-210,Jordan Wilkins,mcolon@example.net,CUST-00210,,ACCT-00012;ACCT-00084;ACCT-00128,4,0,,True,True,True
-211,Blake Vasquez,hughestara@example.com,CUST-00211,EU-CLI-000031,,3,0,,True,False,True
-212,Michael Barker,shaneward@example.com,CUST-00212,EU-CLI-000243,ACCT-00138;ACCT-00325,4,0,,True,True,True
-213,Louis Barrera,robertdudley@example.com,CUST-00213,EU-CLI-000101,ACCT-00058;ACCT-00324,3,0,,True,True,True
-214,Tyler Peters,justin36@example.com,CUST-00214,EU-CLI-000017,,2,1,  justin36@example.com,True,False,True
-215,Crystal Holmes,fthompson@example.net,CUST-00215,EU-CLI-000011,ACCT-00135;ACCT-00254;ACCT-00344,7,1,ftgompson@example.net,True,True,True
-216,Alexis Hoffman PhD,david04@example.org,,EU-CLI-000221,ACCT-00074,2,2,david04@example.org,True,True,True
-217,Leonard Maldonado,lawsontammy@example.com,,EU-CLI-000041,ACCT-00179;ACCT-00312,2,0,,True,True,True
-218,Alexander Higgins,qedwards@example.com,,EU-CLI-000088,ACCT-00077,4,0,,True,True,True
-219,Jennifer Morse,juliewilson@example.net,CUST-00219,EU-CLI-000033,,3,1,  juliewilson@example.net,True,False,True
-220,Eddie Young,samantha69@example.com,CUST-00220,EU-CLI-000251,,2,0,,True,False,True
-221,William Holmes,gregory00@example.net,CUST-00221,,ACCT-00271,1,0,,True,True,True
-222,Jaclyn Wagner,toni57@example.com,CUST-00222,EU-CLI-000218,ACCT-00027,2,0,,True,True,True
-223,Angie Collins,alexander99@example.org,CUST-00223,,ACCT-00020;ACCT-00103;ACCT-00323,6,1,alexander99@example.org,True,True,True
-224,Stephanie Petty,adamsheidi@example.com,CUST-00224,EU-CLI-000061,ACCT-00230;ACCT-00265;ACCT-00291,2,1,adamsheidi@example.com,True,True,True
-225,William Cooley,lvazquez@example.net,CUST-00225,EU-CLI-000038,ACCT-00039,3,0,,True,True,True
-226,John Beard,nicole62@example.net,CUST-00226,EU-CLI-000213,ACCT-00139,3,1,nicole62@example.net,True,True,True
-227,Mrs. Chelsea Cervantes,robinsonsusan@example.org,,EU-CLI-000185,ACCT-00036;ACCT-00235,5,1,robinsonssan@example.org,True,True,True
-228,Laura Melton,andrea72@example.com,,,ACCT-00272,7,2,andrea72@example.com,False,True,True
-229,Luis Silva,harrisjackson@example.com,CUST-00229,EU-CLI-000103,ACCT-00161;ACCT-00247,3,0,,True,True,True
-230,Steven Meadows,ellengomez@example.org,CUST-00230,EU-CLI-000059,ACCT-00121,4,0,,True,True,True
-231,Mary Rose,christinacarr@example.com,CUST-00231,,ACCT-00229,2,0,,True,True,True
-232,Nathan Moore,fcook@example.net,CUST-00232,EU-CLI-000090,,2,0,,True,False,True
-233,Anne Martinez,wellscheryl@example.net,CUST-00233,EU-CLI-000019,ACCT-00309,3,0,,True,True,True
-234,Rebecca Everett,kristin87@example.com,,EU-CLI-000034,,1,0,,True,False,True
-235,Cameron Daniel,rrose@example.org,CUST-00235,EU-CLI-000042,ACCT-00142,4,2,rrose@example.org  ;rrose@example.org,True,True,True
-236,Daniel Huffman,russell16@example.net,CUST-00236,EU-CLI-000025,,4,2,russell16@example.net,True,False,True
-237,Amy Meza,estanley@example.org,,,ACCT-00345,1,0,,False,True,True
-238,Nathan Johnson,shannon60@example.org,CUST-00238,,,2,0,,True,False,True
-239,Anna Jackson,garysavage@example.net,CUST-00239,EU-CLI-000234,,1,1,garysvaage@example.net,True,False,True
-240,Roger Shaw,kphillips@example.org,CUST-00240,EU-CLI-000210,ACCT-00332,7,2,Kphillips@example.org;kphillips@example.org,True,True,True
-241,Tanya Olson,andrew55@example.net,,EU-CLI-000014,ACCT-00156,1,0,,True,True,True
-242,Rebecca King,ashley61@example.com,CUST-00242,EU-CLI-000115,,3,0,,True,False,True
-243,Timothy Nelson,juliewhite@example.org,CUST-00243,,ACCT-00293;ACCT-00299,2,0,,True,True,True
-244,Curtis Edwards,hesskristina@example.net,,EU-CLI-000166,ACCT-00007;ACCT-00277,6,0,,True,True,True
-245,Kimberly Wise,gjones@example.org,CUST-00245,EU-CLI-000108,ACCT-00108;ACCT-00162,3,0,,True,True,True
-246,David Hansen,shouse@example.com,CUST-00246,,,5,0,,True,False,True
-247,Devin Williams,jeffreyhernandez@example.net,CUST-00247,EU-CLI-000138,ACCT-00067;ACCT-00266,9,1,jeffreyhernandz@example.net,True,True,True
-248,Gabriela Conner,james13@example.org,CUST-00248,EU-CLI-000015,ACCT-00123;ACCT-00255,3,0,,True,True,True
-249,Paul Mathews,elaineochoa@example.com,,EU-CLI-000191,,4,2,elaineochoa@example.com;  elaineochoa@example.com,True,False,True
-250,Shelby Perez,zbryant@example.com,CUST-00250,EU-CLI-000010,ACCT-00300,2,1,zbryant@example.com  ,True,True,True
-251,Brendan Hood,debra18@example.com,CUST-00251,EU-CLI-000225,ACCT-00221,2,0,,True,True,True
-252,Troy Miller,rwhitaker@example.org,,EU-CLI-000098,ACCT-00011;ACCT-00066;ACCT-00175;ACCT-00198;ACCT-00237;ACCT-00246,3,0,,True,True,True
-253,Katherine Spencer,mblair@example.com,,EU-CLI-000104,ACCT-00185,3,1,MBLAIR@EXAMPLE.COM,True,True,True
-254,Jesse Oliver,craigsampson@example.com,,EU-CLI-000046,ACCT-00037;ACCT-00049;ACCT-00308,4,0,,True,True,True
-255,Joseph Aguirre,parrishlinda@example.net,CUST-00255,EU-CLI-000120,ACCT-00337,4,0,,True,True,True
-256,Nathan Walter,ysmith@example.net,,EU-CLI-000244,ACCT-00338,2,0,,True,True,True
-257,Emily Murphy,wilsoncaroline@example.net,,EU-CLI-000132,,2,0,,True,False,True
-258,Elizabeth Mendoza,gina11@example.com,CUST-00258,EU-CLI-000029,ACCT-00003;ACCT-00091;ACCT-00153;ACCT-00262,2,1,GINA11@EXAMPLE.COM,True,True,True
-259,John Williams,gregg59@example.org,CUST-00259,EU-CLI-000232,ACCT-00347,4,0,,True,True,True
-260,Curtis Carter,frank63@example.net,,EU-CLI-000062,ACCT-00243;ACCT-00245,2,0,,True,True,True
-261,Nicholas Cook,maureenrodriguez@example.org,CUST-00261,,,4,2,  maureenrodriguez@example.org;maureenrodriguez@example.org  ,True,False,True
-262,Tiffany Carter,robertsilva@example.com,CUST-00262,EU-CLI-000139,ACCT-00054;ACCT-00313,2,0,,True,True,True
-263,William Thompson,lphillips@example.net,,EU-CLI-000143,ACCT-00225,7,1,lphillips@example.net  ,True,True,True
-264,Justin Torres,tony71@example.com,CUST-00264,EU-CLI-000085,ACCT-00287,2,0,,True,True,True
-265,April Woods,skaiser@example.net,CUST-00265,EU-CLI-000116,,1,1,skaise@example.net,True,False,True
-266,Claudia Austin,lori40@example.org,CUST-00266,EU-CLI-000161,ACCT-00098;ACCT-00294,6,0,,True,True,True
-267,Michele Allison,michellebarton@example.net,CUST-00267,EU-CLI-000051,,3,1,  michellebarton@example.net,True,False,True
-268,Brian Salinas,brian11@example.org,CUST-00268,EU-CLI-000066,ACCT-00060,7,1,brian11@example.org,True,True,True
-269,Sara Tran,kennethlewis@example.com,,EU-CLI-000177,,5,0,,True,False,True
-270,Megan Hughes,ilee@example.net,,EU-CLI-000102,,4,0,,True,False,True
-271,Barbara Wiley,rayjon@example.com,CUST-00271,,ACCT-00275,5,0,,True,True,True
-272,Robert Mahoney,donaldoliver@example.com,CUST-00272,,ACCT-00099,0,0,,True,True,False
-273,Nicolas Baker,xlester@example.net,,,ACCT-00184,3,1,xlester@example.net,False,True,True
-274,Eric Murphy,laurapatterson@example.com,CUST-00274,EU-CLI-000109,ACCT-00317,2,0,,True,True,True
-275,Mark Robinson,xreynolds@example.net,CUST-00275,,ACCT-00019;ACCT-00167;ACCT-00176;ACCT-00346,1,0,,True,True,True
-276,Richard Adkins,amy89@example.com,CUST-00276,EU-CLI-000173,ACCT-00025;ACCT-00173,1,0,,True,True,True
-277,Johnathan Ramirez,andersonmichael@example.com,CUST-00277,,ACCT-00169,3,2,nadersonmichael@example.com;andersonmichael@example.com,True,True,True
-278,Stephanie Thompson,perezamber@example.net,CUST-00278,EU-CLI-000247,ACCT-00203,1,0,,True,True,True
-279,Nicholas Castillo,stephensonjoshua@example.net,CUST-00279,,,2,0,,True,False,True
-280,Jacqueline Wang,isingleton@example.org,CUST-00280,,ACCT-00310,5,1,ieingleton@example.org,True,True,True
-281,Dr. Shane Lawson III,ryanjackson@example.com,CUST-00281,,,2,0,,True,False,True
-282,Kristy Mclaughlin,matthewmcmillan@example.org,,EU-CLI-000053,ACCT-00219;ACCT-00280,2,0,,True,True,True
-283,Brian Thornton,millschristine@example.org,CUST-00283,EU-CLI-000012,ACCT-00263,1,0,,True,True,True
-284,Kyle Thompson,kristinehanna@example.net,CUST-00284,EU-CLI-000026,,1,0,,True,False,True
-285,Steve Keith,gmarshall@example.net,CUST-00285,EU-CLI-000162,,2,0,,True,False,True
-286,Mitchell Owens,dianawang@example.net,CUST-00286,,,8,1,dianawqng@example.net,True,False,True
-287,Samuel Kim,qhall@example.org,CUST-00287,EU-CLI-000080,,4,1,qhall@example.org,True,False,True
-288,Misty Yu,mmyers@example.net,CUST-00288,EU-CLI-000228,,4,1,mmyers@example.net,True,False,True
-289,Mike Gutierrez,kelleylindsey@example.com,,EU-CLI-000235,,3,1,kelleylindsey@example.com,True,False,True
-290,Nicole Anderson,william24@example.com,,EU-CLI-000165,,0,0,,True,False,False
-291,Omar Martin,marysimmons@example.org,CUST-00291,EU-CLI-000188,,1,0,,True,False,True
-292,Alfred Stafford,taylorsmith@example.com,CUST-00292,EU-CLI-000203,ACCT-00056;ACCT-00124;ACCT-00250,2,0,,True,True,True
-293,Tyler Crawford,frank89@example.com,,EU-CLI-000089,,3,1,frank89@example.com,True,False,True
-294,Richard Brooks,amcknight@example.net,CUST-00294,EU-CLI-000145,ACCT-00343,4,1,amcknight@example.net,True,True,True
-295,Michael Jacobs,crosslarry@example.org,CUST-00295,EU-CLI-000072,ACCT-00213,2,0,,True,True,True
-296,Danielle Howard,elizabethmeyer@example.net,CUST-00296,,ACCT-00217,2,0,,True,True,True
-297,Walter Murphy,tara24@example.com,CUST-00297,,ACCT-00014,3,0,,True,True,True
-298,Matthew Duffy,michael98@example.org,CUST-00298,EU-CLI-000148,ACCT-00092;ACCT-00252,2,1,MICHAEL98@EXAMPLE.ORG,True,True,True
-299,Donna Edwards,alee@example.net,CUST-00299,EU-CLI-000237,,4,0,,True,False,True
-300,Brittany Dalton,devonking@example.org,CUST-00300,,,3,0,,True,False,True
-301,Omar Larson,lsimon@example.com,CUST-00301,EU-CLI-000140,ACCT-00304,1,0,,True,True,True
-302,Karen Hernandez,tonyasmith@example.org,,,ACCT-00236,4,2,tonyasmith@example.org,False,True,True
-303,Suzanne Ford,amandathompson@example.org,CUST-00303,EU-CLI-000230,ACCT-00202;ACCT-00276,1,0,,True,True,True
-304,Taylor Gilbert,mariahall@example.net,,EU-CLI-000180,ACCT-00178,2,0,,True,True,True
-305,Valerie Reyes,megan81@example.com,CUST-00305,EU-CLI-000209,ACCT-00127,3,1,megan81@example.com,True,True,True
-306,Jasmine Patterson,jodom@example.net,CUST-00306,,,0,0,,True,False,False
-307,Brian Stevenson,zmedina@example.net,,,ACCT-00210,2,0,,False,True,True
-308,Stephanie Murphy,heathcynthia@example.org,CUST-00308,EU-CLI-000178,ACCT-00342,3,0,,True,True,True
-309,Timothy Ward,coheneugene@example.com,CUST-00309,EU-CLI-000035,ACCT-00144;ACCT-00335,0,0,,True,True,False
-310,Julie Lucas,hmoore@example.net,,,ACCT-00295,1,0,,False,True,True
-311,Ashley Davis,jferrell@example.org,CUST-00311,EU-CLI-000045,ACCT-00241;ACCT-00267;ACCT-00322,7,1,jferrell@example.org,True,True,True
-312,Marcus Carroll,ruthsharp@example.net,CUST-00312,EU-CLI-000074,,5,2,ruthsharp@example.net;ruthharp@example.net,True,False,True
-313,Michael West,doconnell@example.net,CUST-00313,EU-CLI-000222,ACCT-00040,4,0,,True,True,True
-314,Dana White,tylerberry@example.org,CUST-00314,EU-CLI-000194,,2,0,,True,False,True
-315,Pamela Johnson,rachelparsons@example.com,,,,2,0,,False,False,True
-316,Donald Ramirez,joanne71@example.com,CUST-00316,EU-CLI-000141,ACCT-00232,2,0,,True,True,True
-317,Frank Hill,nathaniel30@example.org,,EU-CLI-000233,ACCT-00257;ACCT-00320,3,0,,True,True,True
-318,Samantha Dunn,jacqueline64@example.org,CUST-00318,EU-CLI-000226,ACCT-00053;ACCT-00145;ACCT-00289,10,1,jacqueline64@example.org,True,True,True
-319,Aaron Ho,michaeltodd@example.org,CUST-00319,,,3,1,Michaeltodd@example.org,True,False,True
-320,Jennifer Pruitt,michaelmarshall@example.com,CUST-00320,EU-CLI-000018,ACCT-00147,1,0,,True,True,True
-321,Bethany Luna,lindarussell@example.net,,EU-CLI-000187,,4,1,lindarusselk@example.net,True,False,True
-322,Kristen Morton,anthony22@example.com,CUST-00322,EU-CLI-000123,,1,0,,True,False,True
-323,Daniel Serrano,wmcdowell@example.com,CUST-00323,EU-CLI-000055,ACCT-00071,2,0,,True,True,True
-324,Eugene Holland,lowedesiree@example.net,CUST-00324,EU-CLI-000176,,2,1,Lowedesiree@example.net,True,False,True
-325,Andrea Hester,cbrown@example.net,CUST-00325,EU-CLI-000256,ACCT-00061;ACCT-00149;ACCT-00166;ACCT-00303,5,0,,True,True,True
-326,Jeremiah Wood,erik31@example.com,CUST-00326,EU-CLI-000056,,1,0,,True,False,True
-327,Stephanie Alexander,christinaholland@example.net,CUST-00327,EU-CLI-000199,,1,0,,True,False,True
-328,Brandon Stewart,antoniomurphy@example.net,CUST-00328,EU-CLI-000146,,1,0,,True,False,True
-329,Patricia Simmons,murphydavid@example.net,,,ACCT-00331,2,0,,False,True,True
-330,Christopher Richardson,ocampbell@example.com,CUST-00330,EU-CLI-000082,,2,0,,True,False,True
-331,Zachary Phillips,myerslisa@example.net,CUST-00331,EU-CLI-000099,ACCT-00087,4,1,myerslisa@example.net,True,True,True
-332,Jean Russell,greenconnie@example.net,,EU-CLI-000133,ACCT-00117;ACCT-00186,3,0,,True,True,True
-333,Lawrence Lawrence,jordankevin@example.net,CUST-00333,EU-CLI-000217,ACCT-00118,3,1,jordanevin@example.net,True,True,True
-334,Austin Stokes,amystevenson@example.org,CUST-00334,EU-CLI-000081,ACCT-00034;ACCT-00218,4,0,,True,True,True
-335,Jeffery Becker,ballardkerry@example.net,CUST-00335,EU-CLI-000105,ACCT-00349,6,0,,True,True,True
-336,Ashley Palmer,pharrell@example.org,CUST-00336,EU-CLI-000253,ACCT-00100;ACCT-00212,2,0,,True,True,True
-337,Ruth Page,rachel42@example.net,,EU-CLI-000008,ACCT-00311,0,0,,True,True,False
-338,Shari Sullivan,kibarra@example.com,CUST-00338,EU-CLI-000023,,1,0,,True,False,True
-339,Kyle Williams,valenzuelamark@example.net,CUST-00339,EU-CLI-000121,,3,1,valenzuelamark@example.net  ,True,False,True
-340,Rhonda Rodriguez,hmoore@example.org,,EU-CLI-000223,,2,0,,True,False,True
-341,Rachel Baldwin,adam45@example.net,CUST-00341,,ACCT-00193;ACCT-00204,1,0,,True,True,True
-342,Erin Kelly,james79@example.com,CUST-00342,,,1,0,,True,False,True
-343,Lisa Jones,johntyler@example.com,CUST-00343,EU-CLI-000242,ACCT-00057;ACCT-00182,8,1,johntyler@example.com,True,True,True
-344,Adrian Romero,davidblack@example.org,CUST-00344,EU-CLI-000037,,7,0,,True,False,True
-345,Thomas Hill,villegasjohn@example.com,,EU-CLI-000198,,1,0,,True,False,True
-346,David Evans,nicolasjohnson@example.net,,,ACCT-00006,1,0,,False,True,True
-347,Harold Davis DDS,aking@example.net,,EU-CLI-000206,,2,0,,True,False,True
-348,Dr. Shawn Evans,schneiderjames@example.net,CUST-00348,EU-CLI-000240,ACCT-00052,3,0,,True,True,True
-349,Adam Robinson,nashsteven@example.net,CUST-00349,EU-CLI-000208,,3,1,nashsteven@example.net,True,False,True
-350,Lisa Smith,harveycory@example.com,CUST-00350,EU-CLI-000119,ACCT-00078;ACCT-00119,3,0,,True,True,True
+1,James Lin,melissanorman@example.org,CUST-00001,,ACCT-00048,29,5,melissanorman@example.org  ;melissanorman@example.org;melissanoramn@example.org,True,True,True
+2,Robert Leonard,oholmes@example.net,CUST-00002,,ACCT-00131;ACCT-00233;ACCT-00238,19,3,Oholmes@example.net;oholmes@example.net,True,True,True
+3,Anthony Frazier,wardwendy@example.com,CUST-00003,EU-CLI-000141,,20,3,wardwendy@example.com;wardendy@example.com,True,False,True
+4,Amy Holt,bwilkins@example.org,CUST-00004,EU-CLI-000055,,33,8,bwilkins@example.org  ;bwilkins@example.org;  bwilkins@example.org;bilkins@example.org;BWILKINS@EXAMPLE.ORG,True,False,True
+5,Tiffany Scott,fkidd@example.org,CUST-00005,EU-CLI-000110,,30,5,fkidd@example.org;fkied@example.org;  fkidd@example.org;fidd@example.org,True,False,True
+6,Janice Pratt,fullernathan@example.com,CUST-00006,EU-CLI-000020,ACCT-00082;ACCT-00170;ACCT-00260,25,4,fullernathan@example.com;  fullernathan@example.com,True,True,True
+7,Sherry Stone,ryanking@example.com,,EU-CLI-000065,ACCT-00017;ACCT-00055,28,4,ryankin@example.com;ryanking@example.com;Ryanking@example.com,True,True,True
+8,Betty Ellis,marc88@example.org,CUST-00008,EU-CLI-000047,,35,9,marc88@example.org;mafc88@example.org,True,False,True
+9,Todd Reynolds,mkelly@example.com,CUST-00009,EU-CLI-000245,ACCT-00073,30,4,MKELLY@EXAMPLE.COM;mkelly@example.com  ;mkelyl@example.com,True,True,True
+10,Dana Martinez,andersonpaula@example.com,,EU-CLI-000145,ACCT-00063,31,2,Andersonpaula@example.com;andersonpaula@example.com  ,True,True,True
+11,Timothy Nunez,karenjefferson@example.org,,EU-CLI-000249,ACCT-00114,28,3,karenjefverson@example.org;karenjefferson@example.org;karenjeferson@example.org,True,True,True
+12,Mrs. Mary Nunez,jwoodward@example.com,,EU-CLI-000085,ACCT-00151;ACCT-00200;ACCT-00261,26,3,JWOODWARD@EXAMPLE.COM;jwoodward@example.com;jwodward@example.com,True,True,True
+13,Savannah Lopez,nmiller@example.org,CUST-00013,EU-CLI-000074,ACCT-00328,30,3,nmiller@example.org;nmillwr@example.org;NMILLER@EXAMPLE.ORG,True,True,True
+14,Shannon Barnes,nuneztheresa@example.org,CUST-00014,EU-CLI-000243,ACCT-00088;ACCT-00132,34,6,nuneztheresa@example.org;nunezthwresa@example.org;nunezhteresa@example.org;Nuneztheresa@example.org,True,True,True
+15,Roy Foster,megan92@example.com,CUST-00015,EU-CLI-000148,ACCT-00013;ACCT-00033;ACCT-00097,27,3,megan92@example.com;megan92@example.com  ,True,True,True
+16,Thomas Jackson,fsmith@example.org,CUST-00016,,ACCT-00134;ACCT-00301,23,3,fsmith@example.org  ;fsmith@example.org;fsmiht@example.org,True,True,True
+17,Jacob Bean,ericahobbs@example.net,CUST-00017,,ACCT-00096;ACCT-00109,22,3,ericahobbs@example.net;ericahobbs@example.net  ,True,True,True
+18,Melanie Dixon,thompsonjill@example.com,CUST-00018,EU-CLI-000149,ACCT-00062,42,10,thomlsonjill@example.com;thompsonjill@example.com;tompsonjill@example.com;Thompsonjill@example.com;thopsonjill@example.com,True,True,True
+19,Taylor Cook,sgilmore@example.org,CUST-00019,EU-CLI-000176,ACCT-00050,37,14,sgilmore@example.org;sgiomore@example.org;  sgilmore@example.org;sgilmore@example.org  ;silmore@example.org;sgimore@example.org;sgilomre@example.org;Sgilmore@example.org,True,True,True
+20,Stephen Mills,huffmancynthia@example.com,CUST-00020,EU-CLI-000206,ACCT-00209,27,6,huffmancynthia@example.com;huffmanynthia@example.com;HUFFMANCYNTHIA@EXAMPLE.COM,True,True,True
+21,Jeffrey Smith,millerbarbara@example.com,CUST-00021,,,26,6,millerbarbara@example.com;MILLERBARBARA@EXAMPLE.COM;milelrbarbara@example.com,True,False,True
+22,Wendy Kim,shawnbuchanan@example.com,,EU-CLI-000160,,33,3,shawnbuchanan@example.com,True,False,True
+23,Timothy Gray,obrown@example.com,CUST-00023,EU-CLI-000152,,27,5,OBROWN@EXAMPLE.COM;orbown@example.com;obrown@example.com;obroen@example.com,True,False,True
+24,Thomas Smith,beckyespinoza@example.org,CUST-00024,EU-CLI-000038,,22,3,beckyespinoza@example.org;heckyespinoza@example.org,True,False,True
+25,Jonathan Miller,avilaronald@example.com,CUST-00025,,ACCT-00189;ACCT-00214,27,6,avilaronald@example.com;avialronald@example.com;avilraonald@example.com,True,True,True
+26,Melissa Williams,george11@example.com,CUST-00026,,ACCT-00018,29,5,george11@example.com;george11@example.com  ,True,True,True
+27,Michelle Smith,leonard61@example.org,CUST-00027,,ACCT-00041;ACCT-00315,32,5,leonard61@example.org;  leonard61@example.org;lenard61@example.org,True,True,True
+28,Dalton Baker,jackie04@example.org,CUST-00028,,,32,3,jckie04@example.org;jackie04@example.org,True,False,True
+29,Wayne Perez,haley55@example.net,CUST-00029,EU-CLI-000011,ACCT-00116;ACCT-00158,26,8,haley55@example.net  ;hakey55@example.net;haley55@example.net;  haley55@example.net;halwy55@example.net;hlaey55@example.net;Haley55@example.net,True,True,True
+30,Dan Turner,reillylori@example.net,CUST-00030,EU-CLI-000048,ACCT-00009;ACCT-00329,23,2,  reillylori@example.net;REILLYLORI@EXAMPLE.NET,True,True,True
+31,Deborah Snow,pmoreno@example.com,CUST-00031,,ACCT-00188,31,7,pmlreno@example.com;pnoreno@example.com;pmoreno@example.com,True,True,True
+32,Tracy Lopez,shawn89@example.net,CUST-00032,EU-CLI-000178,ACCT-00070,30,7,shawn89@example.net;  shawn89@example.net;shaen89@example.net;shawn89@example.net  ;shawn9@example.net,True,True,True
+33,Justin Mcmillan,mmoore@example.org,CUST-00033,,ACCT-00154;ACCT-00340,20,4,mmoore@example.org;mmooee@example.org;mmoroe@example.org,True,True,True
+34,Elizabeth Martinez,rmorales@example.org,CUST-00034,EU-CLI-000154,,25,6,rmorales@example.org;Rmorales@example.org;mrorales@example.org;RMORALES@EXAMPLE.ORG;  rmorales@example.org,True,False,True
+35,Cesar Simmons,yorkfrank@example.com,CUST-00035,EU-CLI-000246,,34,9,yorkfrank@example.com;Yorkfrank@example.com;  yorkfrank@example.com,True,False,True
+36,Alejandro Carpenter,christopher05@example.net,CUST-00036,EU-CLI-000202,,33,2,Christopher05@example.net;CHRISTOPHER05@EXAMPLE.NET,True,False,True
+37,Daniel Braun,jeffreywest@example.com,CUST-00037,EU-CLI-000195,ACCT-00164,28,4,jeffreywest@example.com;jefgreywest@example.com,True,True,True
+38,Cheryl Harris,ashley02@example.net,CUST-00038,EU-CLI-000019,ACCT-00192,27,6,  ashley02@example.net;ashley02@example.net,True,True,True
+39,Michael Gomez,katrina03@example.com,,EU-CLI-000204,ACCT-00079,25,4,katina03@example.com;  katrina03@example.com;KATRINA03@EXAMPLE.COM;katirna03@example.com,True,True,True
+40,Tina Abbott,heather07@example.org,CUST-00040,EU-CLI-000083,,23,4,heather07@example.org;haether07@example.org,True,False,True
+41,Richard Barnes,olivia20@example.org,CUST-00041,EU-CLI-000115,,31,9,  olivia20@example.org;olivia20@example.org;olkvia20@example.org;livia20@example.org;oluvia20@example.org,True,False,True
+42,David Mills,cookjanet@example.org,CUST-00042,EU-CLI-000102,ACCT-00115,30,4,cookjanet@example.org;cookjanet@example.org  ;  cookjanet@example.org,True,True,True
+43,Jennifer Alexander,luiscardenas@example.org,CUST-00043,EU-CLI-000015,ACCT-00076,27,7,luiscardena@example.org;luiscardenas@example.org;luiscardensa@example.org;  luiscardenas@example.org,True,True,True
+44,Justin Ellis,nphillips@example.net,,EU-CLI-000062,,25,7,mphillips@example.net;Nphillips@example.net;nphillips@example.net;  nphillips@example.net,True,False,True
+45,Phyllis Shah,dayian@example.net,CUST-00045,,,26,4,dayian@example.net;DAYIAN@EXAMPLE.NET;dayian@example.net  ,True,False,True
+46,Ashley Hernandez,cynthia23@example.org,CUST-00046,EU-CLI-000242,ACCT-00259;ACCT-00264;ACCT-00326,33,4,cynthia23@example.org,True,True,True
+47,Mathew Young,kbrown@example.org,CUST-00047,,,33,5,kborwn@example.org;kbrown@example.org;kbrown@example.org  ,True,False,True
+48,Lindsey Harrison,dharris@example.org,,,,29,4,dharris@example.org,False,False,True
+49,Christina Stewart,shelby77@example.com,CUST-00049,EU-CLI-000220,,22,5,shelby77@example.com;SHELBY77@EXAMPLE.COM;shelhy77@example.com,True,False,True
+50,Kristen Horn,joannaolsen@example.org,CUST-00050,EU-CLI-000039,ACCT-00220;ACCT-00279,22,5,joannaolsen@example.org;JOANNAOLSEN@EXAMPLE.ORG,True,True,True
+51,Diane Martin,twalters@example.net,CUST-00051,EU-CLI-000035,ACCT-00195,33,5,twalters@example.net;twlaters@example.net;twalters@example.net  ,True,True,True
+52,Maurice Fernandez,forbeshannah@example.org,,,,31,6,forbeshannah@example.org;forbeshannh@example.org;fobeshannah@example.org;forbeshannah@example.org  ,False,False,True
+53,Clayton Goodman,irogers@example.org,CUST-00053,EU-CLI-000215,,34,5,irogers@example.org;irogers@example.org  ,True,False,True
+54,Kyle Lopez,ilopez@example.org,CUST-00054,EU-CLI-000224,ACCT-00302,26,3,ilopez@example.org;  ilopez@example.org,True,True,True
+55,Alyssa Watson,qwatkins@example.com,CUST-00055,EU-CLI-000126,,33,5,qwatkins@example.com;QWATKINS@EXAMPLE.COM;watkins@example.com,True,False,True
+56,Lisa Torres,bentleyjohnathan@example.org,,EU-CLI-000017,ACCT-00065,31,4,benrleyjohnathan@example.org;bentleyjohnahan@example.org;bentleyjohnathan@example.org,True,True,True
+57,Brandon Ramirez,greenxavier@example.com,CUST-00057,EU-CLI-000151,ACCT-00207;ACCT-00288,34,6,  greenxavier@example.com;greenxaver@example.com;greenxavier@example.com,True,True,True
+58,Monica Frazier,sarabrown@example.com,,EU-CLI-000199,ACCT-00224,27,5,sarabown@example.com;  sarabrown@example.com;sarabrown@example.com,True,True,True
+59,Ronald Orozco,penny31@example.org,CUST-00059,EU-CLI-000173,,33,8,penny31@example.org;PENNY31@EXAMPLE.ORG;pneny31@example.org;oenny31@example.org;Penny31@example.org,True,False,True
+60,Gina Stark,corey84@example.org,CUST-00060,,ACCT-00339,26,3,crey84@example.org;corey84@example.org;Corey84@example.org,True,True,True
+61,Stephen Levine,travismorales@example.org,CUST-00061,EU-CLI-000139,ACCT-00316,33,6,travismorales@example.org;Travismorales@example.org,True,True,True
+62,Mia Smith,johnsonjustin@example.net,CUST-00062,EU-CLI-000165,ACCT-00001;ACCT-00111;ACCT-00327,29,7,johnsonjustin@example.net  ;johnsonjustin@example.net;johnsonjsutin@example.net;Johnsonjustin@example.net;  johnsonjustin@example.net,True,True,True
+63,Leslie Leonard,adamjensen@example.com,CUST-00063,EU-CLI-000092,ACCT-00159,28,4,aadmjensen@example.com;adamjensen@example.com;ADAMJENSEN@EXAMPLE.COM;Adamjensen@example.com,True,True,True
+64,Susan Kelly,leslieorozco@example.org,CUST-00064,EU-CLI-000007,,30,7,leslieorozco@example.org;leslueorozco@example.org;  leslieorozco@example.org;Leslieorozco@example.org,True,False,True
+65,Lauren Mayo,benjamingalloway@example.org,CUST-00065,EU-CLI-000010,ACCT-00125,32,6,benjamingalloway@example.org,True,True,True
+66,Bruce Callahan,johngreer@example.com,CUST-00066,EU-CLI-000127,,32,9,johngreer@example.com  ;  johngreer@example.com;johngreer@example.com;johgreer@example.com;Johngreer@example.com;JOHNGREER@EXAMPLE.COM,True,False,True
+67,Curtis Mercado,garrett39@example.org,CUST-00067,EU-CLI-000142,ACCT-00022,24,2,garrett39@example.org,True,True,True
+68,Cassie Meyers,avilakristy@example.org,,EU-CLI-000026,ACCT-00005;ACCT-00031,38,8,avilakristy@example.org;avilakisty@example.org;AVILAKRISTY@EXAMPLE.ORG;avilaoristy@example.org,True,True,True
+69,Carmen Burns,nathanhill@example.com,CUST-00069,,,25,3,nathanihll@example.com;NATHANHILL@EXAMPLE.COM;nathanhill@example.com,True,False,True
+70,Ashley Johnson,dpalmer@example.com,CUST-00070,EU-CLI-000067,ACCT-00110;ACCT-00314,43,11,dpqlmer@example.com;dpalmer@example.com;DPALMER@EXAMPLE.COM;  dpalmer@example.com;dpalmer@example.com  ,True,True,True
+71,Patrick Howard MD,gwilliams@example.com,,EU-CLI-000119,ACCT-00059,33,3,Gwilliams@example.com;gwilliams@example.com;gwilliqms@example.com,True,True,True
+72,Katrina Moore,melissafernandez@example.net,,,ACCT-00274,33,5,melissafernandez@example.net;melissafernamdez@example.net,False,True,True
+73,Aaron Berg,carlsonlori@example.org,,EU-CLI-000203,ACCT-00171,20,5,carlsonlori@example.org;calsonlori@example.org;Carlsonlori@example.org,True,True,True
+74,David Massey,ataylor@example.com,CUST-00074,,ACCT-00297,38,6,ataylor@example.com;  ataylor@example.com,True,True,True
+75,Andrew Case,ashlee90@example.net,,EU-CLI-000013,ACCT-00072;ACCT-00292,41,11,ashlee90@example.net;sahlee90@example.net;ASHLEE90@EXAMPLE.NET;ashkee90@example.net;ashlee90@example.net  ;sshlee90@example.net;ashlee9@example.net,True,True,True
+76,Julie Sullivan,kdiaz@example.com,CUST-00076,EU-CLI-000045,ACCT-00208;ACCT-00270,32,5,kdiaz@example.com  ;kdiaz@example.com;idiaz@example.com;kriaz@example.com,True,True,True
+77,Katherine Cortez,duncanriley@example.net,CUST-00077,EU-CLI-000037,ACCT-00197,19,5,duncarniley@example.net;duncanriley@example.net;duncanrliey@example.net;  duncanriley@example.net,True,True,True
+78,Sandra Stewart,wilsonashley@example.net,,EU-CLI-000036,ACCT-00046;ACCT-00190,29,4,wilsonashley@example.net;WILSONASHLEY@EXAMPLE.NET;wilsnashley@example.net;wilsonzshley@example.net,True,True,True
+79,Matthew Lee,vorr@example.net,CUST-00079,EU-CLI-000147,ACCT-00089,27,3,vorr@example.net;Vorr@example.net,True,True,True
+80,Robert Wheeler,fwashington@example.com,CUST-00080,EU-CLI-000114,ACCT-00101;ACCT-00187,37,7,fwashington@example.com;  fwashington@example.com;Fwashington@example.com;FWASHINGTON@EXAMPLE.COM,True,True,True
+81,Allison Montgomery,mfitzpatrick@example.org,CUST-00081,EU-CLI-000233,ACCT-00231,36,3,mfitzpatrick@example.org;mfitzpatrick@example.org  ,True,True,True
+82,Daniel Meyer,nshaw@example.net,CUST-00082,EU-CLI-000162,ACCT-00155,27,2,Nshaw@example.net;nshaw@example.net,True,True,True
+83,Jack Smith,hbutler@example.com,CUST-00083,EU-CLI-000191,ACCT-00283,23,4,hbutler@example.com  ;hubtler@example.com;hbutler@example.com,True,True,True
+84,Seth Schultz,mcleandwayne@example.com,,EU-CLI-000004,,26,5,mcleandwayne@example.com;mcleandwyne@example.com;mcelandwayne@example.com;  mcleandwayne@example.com,True,False,True
+85,Jeremy Peck,mmcbride@example.org,,EU-CLI-000064,ACCT-00165,22,3,mmbride@example.org;mmcbride@example.org  ;mmcbride@example.org,True,True,True
+86,Stephen Fitzpatrick,brittany67@example.com,CUST-00086,EU-CLI-000227,,29,8,brittany67@example.com;BRITTANY67@EXAMPLE.COM;bruttany67@example.com,True,False,True
+87,Ryan Davis,lpierce@example.org,CUST-00087,EU-CLI-000187,,35,6,lpierce@example.org;pierce@example.org;Lpierce@example.org;lpiere@example.org,True,False,True
+88,Christina Richardson,wesleywebb@example.com,CUST-00088,EU-CLI-000098,ACCT-00047;ACCT-00080,29,4,weseywebb@example.com;wesleywebb@example.com,True,True,True
+89,Alex Cook,robertschristopher@example.com,CUST-00089,,ACCT-00035;ACCT-00136,26,4,Robertschristopher@example.com;robertschristopher@example.com,True,True,True
+90,Cameron Ingram,joethornton@example.com,CUST-00090,EU-CLI-000234,,26,6,Joethornton@example.com;joethortnon@example.com;joethornton@example.com;JOETHORNTON@EXAMPLE.COM,True,False,True
+91,John Ramirez,ocortez@example.net,CUST-00091,EU-CLI-000237,ACCT-00150,33,4,ocortez@example.net;ocrtez@example.net;ocortez@example.net  ,True,True,True
+92,Daniel Romero,jennifermurray@example.com,,EU-CLI-000122,ACCT-00026,28,3,jennifermurray@example.com,True,True,True
+93,Courtney Gonzalez,clarkdaniel@example.net,CUST-00093,EU-CLI-000086,ACCT-00196,22,2,clarkdaniel@example.net;clarkdaniel@example.net  ,True,True,True
+94,Keith Moore,mnguyen@example.com,CUST-00094,,ACCT-00068;ACCT-00146;ACCT-00350,27,4,knguyen@example.com;mnguyen@example.com;mnguyen@example.com  ,True,True,True
+95,Johnny Anthony,michellegibson@example.org,,EU-CLI-000184,,18,4,michellegibson@example.org  ;michelegibson@example.org;michellegibson@example.org;  michellegibson@example.org,True,False,True
+96,Joyce Harmon,roberto82@example.net,CUST-00096,EU-CLI-000068,ACCT-00038;ACCT-00042,27,7,roberto82@example.net;roberto82@example.net  ;robreto82@example.net,True,True,True
+97,Stuart Simpson,ukaufman@example.org,CUST-00097,EU-CLI-000232,ACCT-00106;ACCT-00306,26,5,ukaufman@example.org;UKAUFMAN@EXAMPLE.ORG,True,True,True
+98,Sandra Gillespie,alee@example.org,CUST-00098,,ACCT-00273,44,7,alee@example.org;alee@example.org  ;alwe@example.org;ALEE@EXAMPLE.ORG,True,True,True
+99,Benjamin Mcintosh,hmercado@example.net,CUST-00099,EU-CLI-000175,ACCT-00122;ACCT-00318,32,5,hmdrcado@example.net;hmercado@example.net;Hmercado@example.net,True,True,True
+100,Sarah Case,tiffanygraham@example.com,,EU-CLI-000228,,31,3,tiffanygraham@example.com;tiffanygraha@example.com,True,False,True
+101,Amy Padilla,ndavis@example.org,CUST-00101,EU-CLI-000058,,25,10,ndavis@example.org;Ndavis@example.org;ndavid@example.org;ndvais@example.org;nadvis@example.org;ndavis@example.org  ,True,False,True
+102,Jennifer Ruiz,upowell@example.net,CUST-00102,EU-CLI-000200,,26,5,upowell@example.net;  upowell@example.net,True,False,True
+103,Steve Martin,harrisjoshua@example.net,CUST-00103,EU-CLI-000190,ACCT-00157;ACCT-00215,36,6,  harrisjoshua@example.net;harrisjoshua@example.net;Harrisjoshua@example.net;harrisjoshja@example.net;HARRISJOSHUA@EXAMPLE.NET,True,True,True
+104,Jennifer Fitzgerald,ricky25@example.com,CUST-00104,EU-CLI-000005,ACCT-00163;ACCT-00286,32,4,ricky25@example.com;Ricky25@example.com,True,True,True
+105,Theresa Hogan,maryfernandez@example.org,,EU-CLI-000138,ACCT-00333,27,9,maryfernandez@example.org  ;maryfernandez@example.org,True,True,True
+106,Mrs. Renee Ramirez,melissagraham@example.net,CUST-00106,EU-CLI-000264,,30,6,melissagraham@example.net;melissgraham@example.net,True,False,True
+107,Chris Davis,amanda18@example.org,CUST-00107,,,41,5,  amanda18@example.org;amanda18@example.org  ;Amanda18@example.org;amanda18@example.org,True,False,True
+108,Brenda Huffman,morganvaldez@example.net,CUST-00108,,,31,3,morganvaldez@example.net;morhanvaldez@example.net;morganvaldrz@example.net,True,False,True
+109,Robert Hernandez,john84@example.com,CUST-00109,EU-CLI-000091,,18,5,john84@example.com;  john84@example.com,True,False,True
+110,Philip Cline,caitlingraham@example.org,,EU-CLI-000033,ACCT-00199,28,6,caitlingraham@example.org;caitlingrham@example.org;caitlingraham@example.org  ,True,True,True
+111,Victor Obrien,peterchurch@example.com,CUST-00111,EU-CLI-000001,ACCT-00334,21,3,peterchurch@example.com;peterchufch@example.com,True,True,True
+112,Gary Meyer,deckerfrancisco@example.com,CUST-00112,,ACCT-00104,31,5,deckerfrancico@example.com;deckerfrancisco@example.com,True,True,True
+113,William Kennedy,kevin69@example.net,CUST-00113,EU-CLI-000116,,38,4,kevin69@example.net,True,False,True
+114,Katie Floyd,kellyjill@example.net,CUST-00114,EU-CLI-000014,,34,7,kellyjill@example.net;KELLYJILL@EXAMPLE.NET;kellyjil@example.net;kellyijll@example.net;klelyjill@example.net,True,False,True
+115,Beth Davis,mreynolds@example.net,CUST-00115,EU-CLI-000262,ACCT-00008;ACCT-00090;ACCT-00120;ACCT-00278,22,2,Mreynolds@example.net;MREYNOLDS@EXAMPLE.NET,True,True,True
+116,Patrick Valencia,josephmiller@example.com,CUST-00116,EU-CLI-000021,ACCT-00348,30,5,josephmiller@example.com;  josephmiller@example.com,True,True,True
+117,Linda Harris,travisdaniels@example.com,CUST-00117,,,21,2,travisdaniels@example.com;travisdaniels@example.com  ,True,False,True
+118,Mr. Robert Haney,timothybenson@example.org,CUST-00118,EU-CLI-000073,,30,2,timothybnson@example.org;timothyhenson@example.org,True,False,True
+119,Mariah Simmons,corymorgan@example.net,,EU-CLI-000002,,24,4,corymorgan@example.net;Corymorgan@example.net,True,False,True
+120,Ashley Garcia,richardjefferson@example.org,,,ACCT-00160,21,3,richardjefferson@example.org;richardjwfferson@example.org,False,True,True
+121,Garrett Solomon,oconnordonald@example.org,CUST-00121,,ACCT-00043;ACCT-00290,23,7,oconnordonald@example.org;  oconnordonald@example.org;connordonald@example.org;oconnordnoald@example.org;oconnordoald@example.org,True,True,True
+122,Michael Jones,amandaobrien@example.com,CUST-00122,EU-CLI-000144,,44,7,amandaobrien@example.com;mandaobrien@example.com;amanadobrien@example.com;amandaobrien@example.com  ,True,False,True
+123,Chad Hill,belljason@example.com,CUST-00123,EU-CLI-000247,ACCT-00112,31,6,belljason@example.com;BELLJASON@EXAMPLE.COM;belojason@example.com;Belljason@example.com,True,True,True
+124,Timothy Bennett,mackenzie72@example.org,CUST-00124,EU-CLI-000205,ACCT-00234,28,6,mackenzie72@example.org;mackenzie72@example.org  ;macenzie72@example.org;mackenize72@example.org;mackwnzie72@example.org,True,True,True
+125,Jessica Patrick,ellisjustin@example.net,CUST-00125,,ACCT-00086,27,2,ellisjustin@example.net;  ellisjustin@example.net,True,True,True
+126,Todd Craig,jason94@example.net,CUST-00126,,,28,4,jason94@example.net;Jason94@example.net,True,False,True
+127,Jill Collins,stephanie16@example.org,CUST-00127,,ACCT-00004,24,5,Stephanie16@example.org;stephanie16@example.org;stephanke16@example.org,True,True,True
+128,Patrick Franklin,holmesashley@example.org,,EU-CLI-000054,ACCT-00285,25,4,HOLMESASHLEY@EXAMPLE.ORG;holmesashlye@example.org;  holmesashley@example.org,True,True,True
+129,Paul Ellis,jonespaul@example.com,CUST-00129,EU-CLI-000105,ACCT-00021;ACCT-00181,26,7,jonespul@example.com;jonespaul@example.com;jinespaul@example.com;JONESPAUL@EXAMPLE.COM,True,True,True
+130,Brian Obrien,raymond41@example.org,CUST-00130,EU-CLI-000032,ACCT-00102;ACCT-00148,32,9,raymon4d1@example.org;raymond41@example.org;raymnd41@example.org;raykond41@example.org,True,True,True
+131,Ronald Collins,ucasey@example.net,CUST-00131,EU-CLI-000213,,27,4,ucasey@example.net;ucasey@example.net  ,True,False,True
+132,Lisa Hart,chris17@example.com,CUST-00132,EU-CLI-000244,,37,6,Chris17@example.com;  chris17@example.com;chris17@example.com;crhis17@example.com;cris17@example.com,True,False,True
+133,William Avila,sbradley@example.com,,EU-CLI-000094,,22,5,sbtadley@example.com;sbradley@example.com;SBRADLEY@EXAMPLE.COM,True,False,True
+134,Jason Stevens DDS,dana88@example.com,CUST-00134,,,30,7,dana88@example.com;daan88@example.com;DANA88@EXAMPLE.COM;  dana88@example.com;dana8@example.com,True,False,True
+135,Nicole Richardson,ivalentine@example.com,CUST-00135,EU-CLI-000053,ACCT-00152,19,3,ovalentine@example.com;ivalentine@example.com;ivalentne@example.com,True,True,True
+136,Juan Castillo,cervantesdarryl@example.org,CUST-00136,EU-CLI-000095,,27,5,cervantesdarryl@example.org;cervantesdarryl@example.org  ;CERVANTESDARRYL@EXAMPLE.ORG,True,False,True
+137,Nicholas Peterson,dawnpruitt@example.com,CUST-00137,EU-CLI-000118,ACCT-00015;ACCT-00141,30,7,dawnpruitt@example.com;dwnpruitt@example.com;dawnprutit@example.com;dawpruitt@example.com;DAWNPRUITT@EXAMPLE.COM;  dawnpruitt@example.com,True,True,True
+138,Stephanie Dominguez,ortizchristopher@example.org,CUST-00138,EU-CLI-000129,,34,5,ortizchristopher@example.org;ORTIZCHRISTOPHER@EXAMPLE.ORG;orticzhristopher@example.org;ortizchristpher@example.org;Ortizchristopher@example.org,True,False,True
+139,Joshua Davis Jr.,uhicks@example.org,CUST-00139,EU-CLI-000216,,30,5,uhicks@example.org;uhicks@example.org  ;uicks@example.org;uhucks@example.org,True,False,True
+140,Michael Mason,patricia65@example.com,,,,24,3,patricia65@example.com,False,False,True
+141,Theresa Andrews,judy18@example.com,CUST-00141,EU-CLI-000120,,32,3,judy18@example.com;jud18@example.com,True,False,True
+142,Angela Sullivan,mgibson@example.com,CUST-00142,EU-CLI-000136,ACCT-00023;ACCT-00222;ACCT-00226,24,9,mgibson@example.com  ;mgibson@example.com;mgibaon@example.com;MGIBSON@EXAMPLE.COM;mgisbon@example.com,True,True,True
+143,Ashley Henderson,barnescaitlin@example.com,CUST-00143,EU-CLI-000238,ACCT-00183,23,3,barnescaitlin@example.com;barnescqitlin@example.com;barnescaitlin@example.com  ,True,True,True
+144,Andrew Leach,bdixon@example.net,CUST-00144,EU-CLI-000155,,34,6,Bdixon@example.net;  bdixon@example.net;bdixno@example.net;bdixon@example.net,True,False,True
+145,Craig Harris,wsimmons@example.org,,,ACCT-00174,23,3,wsimmons@example.org,False,True,True
+146,Destiny Moody,goodwinnicholas@example.com,CUST-00146,EU-CLI-000171,,31,7,goodwinnicholas@example.com  ;GOODWINNICHOLAS@EXAMPLE.COM;goodwinnicholas@example.com,True,False,True
+147,Joseph Marks,coxlisa@example.org,,EU-CLI-000034,ACCT-00201,27,8,coxlisa@example.org;ocxlisa@example.org;coxlisa@example.org  ;cxolisa@example.org,True,True,True
+148,Linda Smith,zcook@example.org,CUST-00148,,ACCT-00029,25,2,zocok@example.org;ZCOOK@EXAMPLE.ORG,True,True,True
+149,Natalie Ramos,ryan35@example.org,CUST-00149,EU-CLI-000089,ACCT-00133,30,7,ryan35@example.org;  ryan35@example.org;ryan3@example.org;RYAN35@EXAMPLE.ORG;ryan35@example.org  ,True,True,True
+150,Seth Baker,michael93@example.org,,EU-CLI-000196,ACCT-00319,28,4,michael93@example.org  ;michale93@example.org;Michael93@example.org;michael93@example.org,True,True,True
+151,Tony Keller,sherri47@example.org,CUST-00151,EU-CLI-000240,ACCT-00045;ACCT-00143,28,4,sherri47@example.org;Sherri47@example.org;sjerri47@example.org,True,True,True
+152,Kristy Mercado,fcole@example.net,,EU-CLI-000174,ACCT-00223;ACCT-00268,37,4,fcole@example.net,True,True,True
+153,Mark Lambert,tshaw@example.com,,EU-CLI-000239,ACCT-00085;ACCT-00307,28,5,tshaw@example.com,True,True,True
+154,Brittany Garza,longryan@example.com,CUST-00154,EU-CLI-000006,,35,6,longryan@example.com;  longryan@example.com,True,False,True
+155,Colleen Page,ortegachristina@example.net,CUST-00155,,ACCT-00126,23,5,ortegachristina@example.net;ORTEGACHRISTINA@EXAMPLE.NET;ortegachristina@example.net  ,True,True,True
+156,John Donaldson,jeffery64@example.org,CUST-00156,EU-CLI-000229,,25,5,jeffery64@example.org;  jeffery64@example.org,True,False,True
+157,Teresa Green,williambooth@example.org,,EU-CLI-000182,ACCT-00281,30,4,williambooth@example.org  ;williamooth@example.org;williambooth@example.org;wililambooth@example.org,True,True,True
+158,Michael Finley,christina81@example.org,CUST-00158,EU-CLI-000167,,25,6,christina81@example.org;Christina81@example.org;christin8a1@example.org;christina81@example.org  ,True,False,True
+159,Paul Lee,alyssa42@example.net,CUST-00159,EU-CLI-000106,ACCT-00240,28,6,alyssa42@example.net;alyssa42@example.net  ,True,True,True
+160,Michael Stanley,marcusmartin@example.net,CUST-00160,EU-CLI-000180,,21,4,marcusmartin@example.net,True,False,True
+161,Virginia Sanchez,lawsonzachary@example.com,,EU-CLI-000231,ACCT-00284,31,5,lawsonzachary@example.com;  lawsonzachary@example.com;LAWSONZACHARY@EXAMPLE.COM,True,True,True
+162,Sierra Townsend,natalie51@example.org,CUST-00162,EU-CLI-000121,ACCT-00083;ACCT-00206,22,6,ntaalie51@example.org;natlaie51@example.org;natalie51@example.org;natlie51@example.org,True,True,True
+163,Michael Floyd,ryanpena@example.com,CUST-00163,EU-CLI-000099,ACCT-00249,33,3,ryanpena@example.com  ;ryanpena@example.com,True,True,True
+164,Lisa Ford,pmiller@example.org,,,ACCT-00113;ACCT-00140,29,3,  pmiller@example.org;pmiller@example.org,False,True,True
+165,Veronica Flores,idiaz@example.org,CUST-00165,EU-CLI-000028,ACCT-00024;ACCT-00093;ACCT-00211;ACCT-00341,24,3,idiaz@example.org;diiaz@example.org,True,True,True
+166,Beverly Hernandez,derrick71@example.net,CUST-00166,,ACCT-00129;ACCT-00305;ACCT-00321,28,2,derrick71@example.net;drerick71@example.net,True,True,True
+167,Kevin Barrett,leeamber@example.org,CUST-00167,EU-CLI-000044,,27,5,leeamber@example.org;LEEAMBER@EXAMPLE.ORG;leeamber@example.org  ,True,False,True
+168,Evan Thompson,yprice@example.net,CUST-00168,EU-CLI-000056,ACCT-00191;ACCT-00296,28,5,yprie@example.net;yprice@example.net;YPRICE@EXAMPLE.NET;yprcie@example.net;yprice@example.net  ,True,True,True
+169,Tara Cunningham MD,lindahoffman@example.com,CUST-00169,,ACCT-00130;ACCT-00180;ACCT-00227,30,6,kindahoffman@example.com;lindahoffman@example.com;ilndahoffman@example.com;  lindahoffman@example.com,True,True,True
+170,Brian Owens,robertheath@example.net,CUST-00170,EU-CLI-000212,,26,5,robertheath@example.net;  robertheath@example.net;robertheath@example.net  ,True,False,True
+171,Michael Johnson,reyespatrick@example.net,,EU-CLI-000077,ACCT-00248,22,7,reyespatrick@example.net;REYESPATRICK@EXAMPLE.NET;eeyespatrick@example.net;reyespstrick@example.net;reyesaptrick@example.net,True,True,True
+172,Sharon Wade,jonathanoneal@example.org,CUST-00172,,ACCT-00137,25,3,jonathannoeal@example.org;jonathanoneal@example.org;jonathanoneal@example.org  ,True,True,True
+173,Timothy Vega,mccarthysarah@example.org,CUST-00173,EU-CLI-000022,ACCT-00172,27,6,  mccarthysarah@example.org;mccarthysarah@example.org  ;mccarthysarah@example.org,True,True,True
+174,Sean Hall,john04@example.com,CUST-00174,EU-CLI-000150,,29,5,john04@example.com,True,False,True
+175,Michael Ellis,maria12@example.org,CUST-00175,EU-CLI-000008,ACCT-00194;ACCT-00253,30,8,mari12@example.org;maria12@example.org;maria12@example.org  ;  maria12@example.org,True,True,True
+176,Patricia Ellis,wflynn@example.net,CUST-00176,EU-CLI-000103,,23,3,wflynn@example.net;wfylnn@example.net,True,False,True
+177,Betty Martinez,jason11@example.net,CUST-00177,EU-CLI-000186,ACCT-00256,16,3,jason11@example.net,True,True,True
+178,Benjamin Torres,mcleanchristopher@example.net,,EU-CLI-000252,,29,7,mcleanchristopher@example.net;mcleanchristopher@example.net  ,True,False,True
+179,Mary Rocha,keith18@example.com,CUST-00179,EU-CLI-000198,ACCT-00051;ACCT-00064,19,4,keith18@example.com;keith18@example.com  ;Keith18@example.com,True,True,True
+180,Michael Chavez,jpaul@example.org,CUST-00180,,,25,2,jpaul@example.org;ipaul@example.org,True,False,True
+181,Dustin Wilson,daniel75@example.org,,EU-CLI-000197,ACCT-00282,25,6,daniel75@example.org;daniel5@example.org,True,True,True
+182,Anthony Carter,comptonmatthew@example.org,CUST-00182,EU-CLI-000050,,31,8,comptonmqtthew@example.org;comtponmatthew@example.org;comptonmatthew@example.org;omptonmatthew@example.org;Comptonmatthew@example.org,True,False,True
+183,Austin Moreno,lauren25@example.org,CUST-00183,EU-CLI-000093,ACCT-00028;ACCT-00205,27,4,lauren25@example.org;LAUREN25@EXAMPLE.ORG,True,True,True
+184,Robert Bennett,aprilmiller@example.com,CUST-00184,EU-CLI-000188,ACCT-00228,23,3,APRILMILLER@EXAMPLE.COM;aprilmilelr@example.com,True,True,True
+185,Crystal Berry,anthonyjohnson@example.net,,,ACCT-00010;ACCT-00216,29,6,anthonyjohnson@example.net;Anthonyjohnson@example.net;anthonyiohnson@example.net;amthonyjohnson@example.net;  anthonyjohnson@example.net,False,True,True
+186,Richard Ray,nthomas@example.com,CUST-00186,EU-CLI-000112,ACCT-00044,27,6,nthomas@example.com;nthoma@example.com;ntohmas@example.com;Nthomas@example.com,True,True,True
+187,Maurice Wu,cannonkelsey@example.net,,EU-CLI-000153,ACCT-00251,33,6,cannonkelsey@example.net,True,True,True
+188,Hannah Ross,dixonmichael@example.org,,EU-CLI-000179,ACCT-00244,27,4,dixonmichael@example.org;Dixonmichael@example.org;dixonmcihael@example.org,True,True,True
+189,Christina Frey,ncompton@example.org,,,,29,1,ncompton@example.org,False,False,True
+190,Jimmy Miller,danielshah@example.com,CUST-00190,EU-CLI-000101,ACCT-00075,27,5,danielshah@example.com;Danielshah@example.com;dajielshah@example.com,True,True,True
+191,Kristina Hart,courtneymack@example.com,CUST-00191,EU-CLI-000157,ACCT-00095;ACCT-00177,30,8,courtneymack@example.com;ourtneymack@example.com;courtnrymack@example.com;courtneymakc@example.com,True,True,True
+192,Amanda Newman,paul91@example.org,CUST-00192,EU-CLI-000217,,27,8,paul91@example.org;pqul91@example.org;paul1@example.org;  paul91@example.org,True,False,True
+193,Corey Wood,durhamcole@example.org,CUST-00193,,,32,7,durhamcole@example.org;durahmcole@example.org;DURHAMCOLE@EXAMPLE.ORG;durnamcole@example.org;curhamcole@example.org,True,False,True
+194,Jeffrey Evans,colemanjessica@example.org,CUST-00194,EU-CLI-000071,ACCT-00258;ACCT-00298,32,9,colemanjessica@example.org;colemanjessiac@example.org;colemqnjessica@example.org;colemanjesisca@example.org;colemanjessica@example.org  ,True,True,True
+195,Phillip Clark,laurapalmer@example.com,CUST-00195,EU-CLI-000029,ACCT-00069,32,4,laurapalmer@example.com  ;laurapalmer@example.com,True,True,True
+196,Sara Lane,cynthia84@example.com,CUST-00196,EU-CLI-000072,,32,10,cynthia84@example.com  ;cynthia84@example.com;cyjthia84@example.com;CYNTHIA84@EXAMPLE.COM;cyntiha84@example.com;Cynthia84@example.com,True,False,True
+197,Daniel Barnes,cathywatson@example.org,,EU-CLI-000219,,32,4,cathywatson@example.org;cathywatson@example.org  ,True,False,True
+198,Benjamin Ballard,catherine97@example.net,,EU-CLI-000088,ACCT-00016;ACCT-00081,26,6,catherine97@example.net  ;atherine97@example.net;  catherine97@example.net;cathrine97@example.net;catherine97@example.net;Catherine97@example.net,True,True,True
+199,Misty Gross,robinsonsarah@example.com,CUST-00199,EU-CLI-000052,ACCT-00032,31,9,robinsonsarha@example.com;robinsonsarah@example.com;  robinsonsarah@example.com;robinsonsaarh@example.com;robinonsarah@example.com;ROBINSONSARAH@EXAMPLE.COM,True,True,True
+200,Valerie Wilson,jeffersonkelsey@example.org,CUST-00200,EU-CLI-000230,,27,5,jeffersnkelsey@example.org;Jeffersonkelsey@example.org;jeffersonkelsey@example.org;jeffersnokelsey@example.org,True,False,True
+201,Maria Hernandez,zwilliams@example.com,CUST-00201,EU-CLI-000207,ACCT-00269,21,3,zwilliams@example.com,True,True,True
+202,Mark Rhodes,ashley40@example.com,CUST-00202,,ACCT-00094,12,2,ashley40@example.com,True,True,True
+203,Stacey Gay,williamskirsten@example.org,CUST-00203,,,23,4,williamskirsten@example.org,True,False,True
+204,Anthony Holder,kimberly10@example.net,CUST-00204,EU-CLI-000042,ACCT-00002;ACCT-00239,38,4,kiberly10@example.net;kimberly10@example.net,True,True,True
+205,Brianna Douglas,tammy29@example.com,CUST-00205,EU-CLI-000023,ACCT-00168,23,6,tammy29@example.com;  tammy29@example.com;Tammy29@example.com;tmmy29@example.com;tammy29@example.com  ,True,True,True
+206,Holly Bowen,riverarobert@example.net,,EU-CLI-000124,ACCT-00105,27,5,riverarobert@example.net  ;riverarobert@example.net;riveraroebrt@example.net,True,True,True
+207,Eric Thompson,guerrerodarlene@example.com,CUST-00207,EU-CLI-000214,ACCT-00107;ACCT-00330,34,7,guerrerodarlene@example.com;guerrerodarene@example.com;GUERRERODARLENE@EXAMPLE.COM;  guerrerodarlene@example.com,True,True,True
+208,Gina Dixon,david65@example.org,CUST-00208,EU-CLI-000113,ACCT-00030;ACCT-00242,35,6,davdi65@example.org;david65@example.org;david65@example.org  ,True,True,True
+209,Kevin Pacheco,ariana31@example.net,CUST-00209,EU-CLI-000172,ACCT-00336,24,5,airana31@example.net;ariana31@example.net;  ariana31@example.net,True,True,True
+210,Jordan Wilkins,mcolon@example.net,,EU-CLI-000251,ACCT-00012;ACCT-00084;ACCT-00128,26,3,mcooln@example.net;mcolon@example.net,True,True,True
+211,Blake Vasquez,hughestara@example.com,CUST-00211,,,31,6,hughestara@example.com;hghestara@example.com;  hughestara@example.com;huthestara@example.com,True,False,True
+212,Michael Barker,shaneward@example.com,CUST-00212,EU-CLI-000210,ACCT-00138;ACCT-00325,24,2,shaneward@example.com  ;shaneward@example.com,True,True,True
+213,Louis Barrera,robertdudley@example.com,,,ACCT-00058;ACCT-00324,31,2,robertdudley@example.com;robertdduley@example.com,False,True,True
+214,Tyler Peters,justin36@example.com,CUST-00214,EU-CLI-000018,,24,3,  justin36@example.com;justin36@example.com,True,False,True
+215,Crystal Holmes,fthompson@example.net,CUST-00215,EU-CLI-000027,ACCT-00135;ACCT-00254;ACCT-00344,26,7,ftgompson@example.net;fthompson@example.net  ;FTHOMPSON@EXAMPLE.NET;fthompson@example.net;  fthompson@example.net;ftohmpson@example.net,True,True,True
+216,Alexis Hoffman PhD,david04@example.org,CUST-00216,EU-CLI-000133,ACCT-00074,26,9,david04@example.org;daivd04@example.org;davi04@example.org;dacid04@example.org,True,True,True
+217,Leonard Maldonado,lawsontammy@example.com,CUST-00217,EU-CLI-000059,ACCT-00179;ACCT-00312,21,4,lawsontammy@example.com;lawsontamy@example.com,True,True,True
+218,Alexander Higgins,qedwards@example.com,CUST-00218,EU-CLI-000169,ACCT-00077,29,2,qedwards@example.com;  qedwards@example.com,True,True,True
+219,Jennifer Morse,juliewilson@example.net,,,,25,4,  juliewilson@example.net;juliewilsno@example.net;juliewilson@example.net;Juliewilson@example.net,False,False,True
+220,Eddie Young,samantha69@example.com,,EU-CLI-000111,,24,6,samantha69@example.com;samantah69@example.com,True,False,True
+221,William Holmes,gregory00@example.net,CUST-00221,EU-CLI-000181,ACCT-00271,33,7,greglry00@example.net;gregory00@example.net,True,True,True
+222,Jaclyn Wagner,toni57@example.com,CUST-00222,EU-CLI-000140,ACCT-00027,30,5,toni57@example.com;toi57@example.com;oni57@example.com;Toni57@example.com,True,True,True
+223,Angie Collins,alexander99@example.org,CUST-00223,,ACCT-00020;ACCT-00103;ACCT-00323,33,5,alexander99@example.org;alexaner99@example.org;alexander99@example.org  ;Alexander99@example.org,True,True,True
+224,Stephanie Petty,adamsheidi@example.com,CUST-00224,EU-CLI-000049,ACCT-00230;ACCT-00265;ACCT-00291,32,3,adamsheidi@example.com;  adamsheidi@example.com,True,True,True
+225,William Cooley,lvazquez@example.net,,EU-CLI-000060,ACCT-00039,26,3,LVAZQUEZ@EXAMPLE.NET;lvazquez@example.net;vlazquez@example.net,True,True,True
+226,John Beard,nicole62@example.net,CUST-00226,EU-CLI-000225,ACCT-00139,25,6,nicole62@example.net,True,True,True
+227,Mrs. Chelsea Cervantes,robinsonsusan@example.org,,EU-CLI-000078,ACCT-00036;ACCT-00235,30,4,robinsonssan@example.org;robinsonsusn@example.org;robinsonsusan@example.org,True,True,True
+228,Laura Melton,andrea72@example.com,CUST-00228,EU-CLI-000090,ACCT-00272,28,4,andrea72@example.com;Andrea72@example.com,True,True,True
+229,Luis Silva,harrisjackson@example.com,CUST-00229,EU-CLI-000100,ACCT-00161;ACCT-00247,39,8,  harrisjackson@example.com;harrsijackson@example.com;harrisjackson@example.com;harrijackson@example.com;HARRISJACKSON@EXAMPLE.COM,True,True,True
+230,Steven Meadows,ellengomez@example.org,,,ACCT-00121,34,6,Ellengomez@example.org;ellnegomez@example.org;ellengomez@example.org;ellengomze@example.org,False,True,True
+231,Mary Rose,christinacarr@example.com,CUST-00231,EU-CLI-000046,ACCT-00229,31,7,christnacarr@example.com;christinacarr@example.com;  christinacarr@example.com,True,True,True
+232,Nathan Moore,fcook@example.net,CUST-00232,EU-CLI-000261,,30,6,cfook@example.net;fcook@example.net;  fcook@example.net;fcook@example.net  ;focok@example.net,True,False,True
+233,Anne Martinez,wellscheryl@example.net,CUST-00233,,ACCT-00309,33,6,wellscheryl@example.net;WELLSCHERYL@EXAMPLE.NET;wellschryl@example.net,True,True,True
+234,Rebecca Everett,kristin87@example.com,CUST-00234,EU-CLI-000117,,31,3,kristin87@example.com;kristin87@example.com  ,True,False,True
+235,Cameron Daniel,rrose@example.org,CUST-00235,EU-CLI-000104,ACCT-00142,27,8,rrose@example.org  ;rrose@example.org;rrse@example.org;rfose@example.org,True,True,True
+236,Daniel Huffman,russell16@example.net,,EU-CLI-000241,,26,3,russell16@example.net,True,False,True
+237,Amy Meza,estanley@example.org,,EU-CLI-000201,ACCT-00345,27,4,estanley@example.org;  estanley@example.org;estanley@example.org  ,True,True,True
+238,Nathan Johnson,shannon60@example.org,CUST-00238,EU-CLI-000123,,26,3,Shannon60@example.org;SHANNON60@EXAMPLE.ORG;shannon60@example.org,True,False,True
+239,Anna Jackson,garysavage@example.net,CUST-00239,,,26,3,garysavae@example.net;garysavage@example.net,True,False,True
+240,Roger Shaw,kphillips@example.org,,EU-CLI-000161,ACCT-00332,26,6,Kphillips@example.org;kphillips@example.org;kphiklips@example.org;kphilips@example.org,True,True,True
+241,Tanya Olson,andrew55@example.net,CUST-00241,,ACCT-00156,35,9,ANDREW55@EXAMPLE.NET;  andrew55@example.net;andrew55@example.net;andew55@example.net;andre5w5@example.net,True,True,True
+242,Rebecca King,ashley61@example.com,CUST-00242,EU-CLI-000016,,32,7,ashley61@example.com;adhley61@example.com;Ashley61@example.com,True,False,True
+243,Timothy Nelson,juliewhite@example.org,CUST-00243,EU-CLI-000075,ACCT-00293;ACCT-00299,22,0,,True,True,True
+244,Curtis Edwards,hesskristina@example.net,CUST-00244,EU-CLI-000263,ACCT-00007;ACCT-00277,27,5,hesskritsina@example.net;hesskristina@example.net,True,True,True
+245,Kimberly Wise,gjones@example.org,CUST-00245,EU-CLI-000254,ACCT-00108;ACCT-00162,36,10,gjones@example.org;gones@example.org;gjons@example.org;GJONES@EXAMPLE.ORG,True,True,True
+246,David Hansen,shouse@example.com,CUST-00246,,,33,4,shouse@example.com;shoue@example.com;shose@example.com;shoues@example.com,True,False,True
+247,Devin Williams,jeffreyhernandez@example.net,CUST-00247,EU-CLI-000253,ACCT-00067;ACCT-00266,28,4,jeffreyhernandz@example.net;Jeffreyhernandez@example.net;jeffreyhernandez@example.net,True,True,True
+248,Gabriela Conner,james13@example.org,CUST-00248,EU-CLI-000222,ACCT-00123;ACCT-00255,35,3,jaems13@example.org;james13@example.org,True,True,True
+249,Paul Mathews,elaineochoa@example.com,CUST-00249,,,29,9,elaineochoa@example.com;  elaineochoa@example.com;ELAINEOCHOA@EXAMPLE.COM;elakneochoa@example.com;Elaineochoa@example.com,True,False,True
+250,Shelby Perez,zbryant@example.com,,,ACCT-00300,25,6,zbryant@example.com  ;zbryant@example.com;Zbryant@example.com,False,True,True
+251,Brendan Hood,debra18@example.com,CUST-00251,EU-CLI-000163,ACCT-00221,37,9,debra18@example.com;  debra18@example.com;DEBRA18@EXAMPLE.COM,True,True,True
+252,Troy Miller,rwhitaker@example.org,CUST-00252,,ACCT-00011;ACCT-00066;ACCT-00175;ACCT-00198;ACCT-00237;ACCT-00246,25,6,rwhitaker@example.org;rwhiraker@example.org;wrhitaker@example.org;RWHITAKER@EXAMPLE.ORG,True,True,True
+253,Katherine Spencer,mblair@example.com,CUST-00253,EU-CLI-000185,ACCT-00185,25,3,MBLAIR@EXAMPLE.COM;mblair@example.com;blair@example.com,True,True,True
+254,Jesse Oliver,craigsampson@example.com,CUST-00254,EU-CLI-000250,ACCT-00037;ACCT-00049;ACCT-00308,22,4,cfaigsampson@example.com;craigsamoson@example.com;cragisampson@example.com;craigsampson@example.com,True,True,True
+255,Joseph Aguirre,parrishlinda@example.net,,,ACCT-00337,37,3,parrishlnida@example.net;parrishlinda@example.net;prrishlinda@example.net,False,True,True
+256,Nathan Walter,ysmith@example.net,CUST-00256,EU-CLI-000087,ACCT-00338,33,9,ysmith@example.net;symith@example.net;hsmith@example.net;Ysmith@example.net;ysmit@example.net,True,True,True
+257,Emily Murphy,wilsoncaroline@example.net,CUST-00257,EU-CLI-000134,,34,4,  wilsoncaroline@example.net;wilsoncaroline@example.net  ;WILSONCAROLINE@EXAMPLE.NET,True,False,True
+258,Elizabeth Mendoza,gina11@example.com,CUST-00258,,ACCT-00003;ACCT-00091;ACCT-00153;ACCT-00262,25,2,GINA11@EXAMPLE.COM;gina11@example.com,True,True,True
+259,John Williams,gregg59@example.org,CUST-00259,,ACCT-00347,27,2,gregg59@example.org,True,True,True
+260,Curtis Carter,frank63@example.net,CUST-00260,EU-CLI-000069,ACCT-00243;ACCT-00245,22,5,frank63@example.net;Frank63@example.net;  frank63@example.net,True,True,True
+261,Nicholas Cook,maureenrodriguez@example.org,,EU-CLI-000177,,29,10,  maureenrodriguez@example.org;maureenrodriguez@example.org  ;maureenrodriguez@example.org;maurenrodriguez@example.org;marueenrodriguez@example.org,True,False,True
+262,Tiffany Carter,robertsilva@example.com,CUST-00262,EU-CLI-000066,ACCT-00054;ACCT-00313,26,3,robertsilva@example.com;robertsilva@example.com  ;robertsila@example.com,True,True,True
+263,William Thompson,lphillips@example.net,CUST-00263,EU-CLI-000131,ACCT-00225,40,2,lphillips@example.net  ;lphillips@example.net,True,True,True
+264,Justin Torres,tony71@example.com,CUST-00264,EU-CLI-000082,ACCT-00287,27,6,tony71@example.com;Tony71@example.com;toy71@example.com;  tony71@example.com,True,True,True
+265,April Woods,skaiser@example.net,CUST-00265,EU-CLI-000009,,31,11,skaise@example.net;Skaiser@example.net;skaiser@example.net;skqiser@example.net;SKAISER@EXAMPLE.NET;  skaiser@example.net;soaiser@example.net,True,False,True
+266,Claudia Austin,lori40@example.org,CUST-00266,,ACCT-00098;ACCT-00294,36,7,lori40@example.org  ;lori40@example.org;lori4@example.org,True,True,True
+267,Michele Allison,michellebarton@example.net,,EU-CLI-000164,,21,1,  michellebarton@example.net,True,False,True
+268,Brian Salinas,brian11@example.org,CUST-00268,EU-CLI-000146,ACCT-00060,30,5,brian11@example.org;brin11@example.org;brian11@example.org  ,True,True,True
+269,Sara Tran,kennethlewis@example.com,CUST-00269,EU-CLI-000156,,26,3,kennethlewis@example.com;Kennethlewis@example.com,True,False,True
+270,Megan Hughes,ilee@example.net,CUST-00270,,,27,4,ilee@example.net;iled@example.net;ILEE@EXAMPLE.NET,True,False,True
+271,Barbara Wiley,rayjon@example.com,CUST-00271,EU-CLI-000137,ACCT-00275,43,6,rayjon@example.com;rzyjon@example.com;RAYJON@EXAMPLE.COM,True,True,True
+272,Robert Mahoney,donaldoliver@example.com,CUST-00272,EU-CLI-000030,ACCT-00099,27,4,dlnaldoliver@example.com;donaldoliver@example.com;donaldoluver@example.com,True,True,True
+273,Nicolas Baker,xlester@example.net,CUST-00273,EU-CLI-000063,ACCT-00184,38,7,xlester@example.net;xleter@example.net;xlestre@example.net,True,True,True
+274,Eric Murphy,laurapatterson@example.com,CUST-00274,,ACCT-00317,30,8,  laurapatterson@example.com;Laurapatterson@example.com;laurapatterson@example.com;laurapatterson@example.com  ;laurapattreson@example.com,True,True,True
+275,Mark Robinson,xreynolds@example.net,CUST-00275,,ACCT-00019;ACCT-00167;ACCT-00176;ACCT-00346,27,5,xreynolds@example.net;xreynolds@example.net  ,True,True,True
+276,Richard Adkins,amy89@example.com,CUST-00276,EU-CLI-000159,ACCT-00025;ACCT-00173,32,7,AMY89@EXAMPLE.COM;amy89@example.com;am8y9@example.com;amy89@example.com  ,True,True,True
+277,Johnathan Ramirez,andersonmichael@example.com,CUST-00277,EU-CLI-000193,ACCT-00169,28,5,andersonmichael@example.com  ;andersonmichael@example.com;ANDERSONMICHAEL@EXAMPLE.COM;ahdersonmichael@example.com,True,True,True
+278,Stephanie Thompson,perezamber@example.net,,EU-CLI-000170,ACCT-00203,36,5,perezamber@example.net;pereazmber@example.net,True,True,True
+279,Nicholas Castillo,stephensonjoshua@example.net,,EU-CLI-000040,,23,3,sgephensonjoshua@example.net;tsephensonjoshua@example.net;  stephensonjoshua@example.net,True,False,True
+280,Jacqueline Wang,isingleton@example.org,CUST-00280,EU-CLI-000130,ACCT-00310,26,9,ieingleton@example.org;  isingleton@example.org;isingleton@example.org;isingleton@example.org  ,True,True,True
+281,Dr. Shane Lawson III,ryanjackson@example.com,CUST-00281,,,28,7,ryanjackson@example.com;ryanjcakson@example.com;Ryanjackson@example.com;ryanajckson@example.com;RYANJACKSON@EXAMPLE.COM,True,False,True
+282,Kristy Mclaughlin,matthewmcmillan@example.org,CUST-00282,EU-CLI-000057,ACCT-00219;ACCT-00280,27,2,Matthewmcmillan@example.org;matthewmcimllan@example.org,True,True,True
+283,Brian Thornton,millschristine@example.org,CUST-00283,EU-CLI-000051,ACCT-00263,32,6,millschristine@example.org;  millschristine@example.org;millsxhristine@example.org;millschritine@example.org,True,True,True
+284,Kyle Thompson,kristinehanna@example.net,,EU-CLI-000248,,23,4,kritinehanna@example.net;kristinehanna@example.net;krisinehanna@example.net,True,False,True
+285,Steve Keith,gmarshall@example.net,CUST-00285,,,20,3,gmarshall@example.net,True,False,True
+286,Mitchell Owens,dianawang@example.net,CUST-00286,EU-CLI-000223,,27,6,dianawqng@example.net;dianaang@example.net;dianawang@example.net;dianawsng@example.net,True,False,True
+287,Samuel Kim,qhall@example.org,CUST-00287,EU-CLI-000166,,40,9,qhall@example.org;qall@example.org;Qhall@example.org;qhal@example.org,True,False,True
+288,Misty Yu,mmyers@example.net,CUST-00288,,,24,3,mmyers@example.net;mmyrrs@example.net,True,False,True
+289,Mike Gutierrez,kelleylindsey@example.com,CUST-00289,,,23,5,kelleylindsey@example.com;KELLEYLINDSEY@EXAMPLE.COM,True,False,True
+290,Nicole Anderson,william24@example.com,CUST-00290,EU-CLI-000025,,35,7,william24@example.com;WILLIAM24@EXAMPLE.COM;williqm24@example.com;william42@example.com;wliliam24@example.com,True,False,True
+291,Omar Martin,marysimmons@example.org,CUST-00291,EU-CLI-000109,,30,3,marysimmons@example.org;marsyimmons@example.org,True,False,True
+292,Alfred Stafford,taylorsmith@example.com,,,ACCT-00056;ACCT-00124;ACCT-00250,23,4,talyorsmith@example.com;taylorsmith@example.com,False,True,True
+293,Tyler Crawford,frank89@example.com,CUST-00293,,,25,2,frank89@example.com;frakn89@example.com,True,False,True
+294,Richard Brooks,amcknight@example.net,CUST-00294,,ACCT-00343,25,5,amcknight@example.net;AMCKNIGHT@EXAMPLE.NET;amckngiht@example.net,True,True,True
+295,Michael Jacobs,crosslarry@example.org,CUST-00295,EU-CLI-000208,ACCT-00213,24,4,crosslarry@example.org;crosslarty@example.org,True,True,True
+296,Danielle Howard,elizabethmeyer@example.net,,EU-CLI-000158,ACCT-00217,39,4,elizabethmeyer@example.net;Elizabethmeyer@example.net;  elizabethmeyer@example.net,True,True,True
+297,Walter Murphy,tara24@example.com,CUST-00297,,ACCT-00014,29,3,  tara24@example.com;tara24@example.com;tata24@example.com,True,True,True
+298,Matthew Duffy,michael98@example.org,CUST-00298,EU-CLI-000080,ACCT-00092;ACCT-00252,32,8,MICHAEL98@EXAMPLE.ORG;michael98@example.org;michael98@example.org  ,True,True,True
+299,Donna Edwards,alee@example.net,,EU-CLI-000218,,27,7,alee@example.net;ALEE@EXAMPLE.NET;  alee@example.net,True,False,True
+300,Brittany Dalton,devonking@example.org,CUST-00300,,,29,3,devonking@example.org;devoning@example.org,True,False,True
+301,Omar Larson,lsimon@example.com,CUST-00301,EU-CLI-000041,ACCT-00304,25,3,lsumon@example.com;lsimon@example.com,True,True,True
+302,Karen Hernandez,tonyasmith@example.org,CUST-00302,EU-CLI-000081,ACCT-00236,28,7,tonyasmith@example.org;toynasmith@example.org;tonyasmth@example.org;Tonyasmith@example.org;tonyasmith@example.org  ,True,True,True
+303,Suzanne Ford,amandathompson@example.org,CUST-00303,EU-CLI-000143,ACCT-00202;ACCT-00276,25,2,amandathompson@example.org,True,True,True
+304,Taylor Gilbert,mariahall@example.net,CUST-00304,EU-CLI-000236,ACCT-00178,15,3,mariahall@example.net;Mariahall@example.net,True,True,True
+305,Valerie Reyes,megan81@example.com,,EU-CLI-000003,ACCT-00127,29,5,megan81@example.com;mwgan81@example.com,True,True,True
+306,Jasmine Patterson,jodom@example.net,CUST-00306,,,17,4,jodom@example.net;jodm@example.net,True,False,True
+307,Brian Stevenson,zmedina@example.net,CUST-00307,EU-CLI-000108,ACCT-00210,26,7,zmedina@example.net;zmednia@example.net;zmedina@example.net  ;zmeidna@example.net,True,True,True
+308,Stephanie Murphy,heathcynthia@example.org,CUST-00308,EU-CLI-000043,ACCT-00342,28,9,heathcynthia@example.org;heathcyntgia@example.org;  heathcynthia@example.org;HEATHCYNTHIA@EXAMPLE.ORG;hetahcynthia@example.org,True,True,True
+309,Timothy Ward,coheneugene@example.com,,EU-CLI-000194,ACCT-00144;ACCT-00335,27,7,coheneugene@example.com;COHENEUGENE@EXAMPLE.COM,True,True,True
+310,Julie Lucas,hmoore@example.net,,EU-CLI-000096,ACCT-00295,19,2,hmoore@example.net;hmooe@example.net,True,True,True
+311,Ashley Davis,jferrell@example.org,,EU-CLI-000257,ACCT-00241;ACCT-00267;ACCT-00322,31,5,kferrell@example.org;jferrell@example.org;jfrrell@example.org,True,True,True
+312,Marcus Carroll,ruthsharp@example.net,,EU-CLI-000061,,28,7,ruthsharp@example.net;ruthharp@example.net;ruthshafp@example.net;ruthsahrp@example.net;  ruthsharp@example.net,True,False,True
+313,Michael West,doconnell@example.net,CUST-00313,EU-CLI-000084,ACCT-00040,39,6,doconnell@example.net  ;DOCONNELL@EXAMPLE.NET;doconnell@example.net;docpnnell@example.net;doconell@example.net,True,True,True
+314,Dana White,tylerberry@example.org,CUST-00314,EU-CLI-000125,,30,8,tylerberry@example.org;TYLERBERRY@EXAMPLE.ORG;tylerebrry@example.org;Tylerberry@example.org,True,False,True
+315,Pamela Johnson,rachelparsons@example.com,CUST-00315,,,29,6,rachelaprsons@example.com;rachelparsons@example.com;eachelparsons@example.com;rachelparosns@example.com;RACHELPARSONS@EXAMPLE.COM;Rachelparsons@example.com,True,False,True
+316,Donald Ramirez,joanne71@example.com,CUST-00316,EU-CLI-000256,ACCT-00232,28,5,Joanne71@example.com;joanne71@example.com;joajne71@example.com,True,True,True
+317,Frank Hill,nathaniel30@example.org,CUST-00317,EU-CLI-000128,ACCT-00257;ACCT-00320,33,3,nathaniel30@example.org,True,True,True
+318,Samantha Dunn,jacqueline64@example.org,CUST-00318,EU-CLI-000132,ACCT-00053;ACCT-00145;ACCT-00289,40,3,jacqueline64@example.org;Jacqueline64@example.org;jacqueine64@example.org,True,True,True
+319,Aaron Ho,michaeltodd@example.org,CUST-00319,EU-CLI-000070,,30,8,Michaeltodd@example.org;michaletodd@example.org;micheltodd@example.org;michaeltodd@example.org;michawltodd@example.org,True,False,True
+320,Jennifer Pruitt,michaelmarshall@example.com,CUST-00320,EU-CLI-000079,ACCT-00147,36,5,michaelmarshall@example.com;michaelmrshall@example.com;  michaelmarshall@example.com,True,True,True
+321,Bethany Luna,lindarussell@example.net,CUST-00321,,,30,5,lindarusselk@example.net;lindarussell@example.net;kindarussell@example.net,True,False,True
+322,Kristen Morton,anthony22@example.com,CUST-00322,EU-CLI-000192,,26,4,anthony22@example.com,True,False,True
+323,Daniel Serrano,wmcdowell@example.com,CUST-00323,,ACCT-00071,25,8,wmcdowell@example.com;Wmcdowell@example.com;  wmcdowell@example.com,True,True,True
+324,Eugene Holland,lowedesiree@example.net,,EU-CLI-000183,,37,6,Lowedesiree@example.net;lowedesiree@example.net;loweesiree@example.net,True,False,True
+325,Andrea Hester,cbrown@example.net,CUST-00325,EU-CLI-000012,ACCT-00061;ACCT-00149;ACCT-00166;ACCT-00303,37,9,cbrown@example.net;crown@example.net;CBROWN@EXAMPLE.NET,True,True,True
+326,Jeremiah Wood,erik31@example.com,CUST-00326,EU-CLI-000076,,23,3,erik31@example.com,True,False,True
+327,Stephanie Alexander,christinaholland@example.net,CUST-00327,,,24,2,christinaholland@example.net;christinaholland@example.net  ,True,False,True
+328,Brandon Stewart,antoniomurphy@example.net,CUST-00328,EU-CLI-000168,,20,7,antoniourphy@example.net;antoniomurphy@example.net  ;antoniomurphy@example.net;  antoniomurphy@example.net,True,False,True
+329,Patricia Simmons,murphydavid@example.net,CUST-00329,,ACCT-00331,30,3,Murphydavid@example.net;murphydavid@example.net,True,True,True
+330,Christopher Richardson,ocampbell@example.com,,EU-CLI-000031,,32,3,ocampbell@example.com;OCAMPBELL@EXAMPLE.COM,True,False,True
+331,Zachary Phillips,myerslisa@example.net,CUST-00331,EU-CLI-000189,ACCT-00087,30,7,myerslisa@example.net;ymerslisa@example.net;MYERSLISA@EXAMPLE.NET;myerslsia@example.net,True,True,True
+332,Jean Russell,greenconnie@example.net,CUST-00332,,ACCT-00117;ACCT-00186,38,6,greencnonie@example.net;greenconnie@example.net;GREENCONNIE@EXAMPLE.NET;greenconnie@example.net  ,True,True,True
+333,Lawrence Lawrence,jordankevin@example.net,CUST-00333,EU-CLI-000209,ACCT-00118,26,4,jordanevin@example.net;joradnkevin@example.net;jordankevin@example.net,True,True,True
+334,Austin Stokes,amystevenson@example.org,CUST-00334,,ACCT-00034;ACCT-00218,28,3,amystevenson@example.org;  amystevenson@example.org,True,True,True
+335,Jeffery Becker,ballardkerry@example.net,CUST-00335,,ACCT-00349,33,3,ballardkerry@example.net;ballardkrry@example.net,True,True,True
+336,Ashley Palmer,pharrell@example.org,CUST-00336,EU-CLI-000221,ACCT-00100;ACCT-00212,32,5,pharrell@example.org;Pharrell@example.org,True,True,True
+337,Ruth Page,rachel42@example.net,CUST-00337,,ACCT-00311,28,3,rachel42@example.net;Rachel42@example.net;rachel42@example.net  ,True,True,True
+338,Shari Sullivan,kibarra@example.com,CUST-00338,EU-CLI-000235,,30,4,  kibarra@example.com;kibarra@example.com;kibarra@example.com  ;kiabrra@example.com,True,False,True
+339,Kyle Williams,valenzuelamark@example.net,,,,27,5,valenzuelamark@example.net  ;falenzuelamark@example.net;valenzuelamark@example.net,False,False,True
+340,Rhonda Rodriguez,hmoore@example.org,CUST-00340,EU-CLI-000259,,18,2,hmoore@example.org,True,False,True
+341,Rachel Baldwin,adam45@example.net,,EU-CLI-000211,ACCT-00193;ACCT-00204,25,4,ADAM45@EXAMPLE.NET;daam45@example.net;adam45@example.net,True,True,True
+342,Erin Kelly,james79@example.com,CUST-00342,EU-CLI-000260,,30,8,james79@example.com;jaems79@example.com;JAMES79@EXAMPLE.COM,True,False,True
+343,Lisa Jones,johntyler@example.com,CUST-00343,EU-CLI-000024,ACCT-00057;ACCT-00182,37,4,johntyler@example.com,True,True,True
+344,Adrian Romero,davidblack@example.org,CUST-00344,EU-CLI-000258,,26,3,davidblack@example.org;dafidblack@example.org,True,False,True
+345,Thomas Hill,villegasjohn@example.com,,EU-CLI-000107,,27,2,villegasjohn@example.com;  villegasjohn@example.com,True,False,True
+346,David Evans,nicolasjohnson@example.net,CUST-00346,EU-CLI-000255,ACCT-00006,28,2,Nicolasjohnson@example.net,True,True,True
+347,Harold Davis DDS,aking@example.net,,EU-CLI-000135,,34,4,aking@example.net;akin@example.net;AKING@EXAMPLE.NET,True,False,True
+348,Dr. Shawn Evans,schneiderjames@example.net,CUST-00348,,ACCT-00052,21,4,schneiderjames@example.net,True,True,True
+349,Adam Robinson,nashsteven@example.net,CUST-00349,EU-CLI-000226,,24,7,nashsteven@example.net;Nashsteven@example.net,True,False,True
+350,Lisa Smith,harveycory@example.com,CUST-00350,EU-CLI-000097,ACCT-00078;ACCT-00119,24,0,,True,True,True

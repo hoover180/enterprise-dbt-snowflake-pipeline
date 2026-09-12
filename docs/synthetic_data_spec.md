@@ -15,7 +15,7 @@ Run the generator from the repository root with:
 python data_gen/erp.py
 ```
 
-The default is 500 orders per region, with a repeatable seed. Use `--orders-per-region`, `--seed`, or `--output-dir` to override those defaults. The script requires the `Faker` package.
+The default is 500 orders per region. Use `--orders-per-region` or `--output-dir` to override those defaults. The script requires the `Faker` package. **`erp.py` no longer accepts a `--seed`** -- since Phase 5B pre-work (Issue #42), every order-level fact (customer, dates, items, status/lifecycle, refund) comes from the shared, seed-independent order pool (`data_gen/order_pool.py`, see below), so there is no remaining script-local randomness left for `erp.py` to seed. `--orders-per-region` must be passed identically to `clickstream.py`'s and `crm.py`'s own `--orders-per-region` for their order/transaction references to correlate against this shard -- see "Shared order pool" below.
 
 ## Shard schemas
 
@@ -27,6 +27,9 @@ Both shards contain the same underlying fields, but their source naming conventi
 | Customer identifier | `customer_id` (`CUST-#####`) | `client_ref` (`EU-CLI-######`, independently assigned -- see below) |
 | Order date          | `order_date`      | `placed_on`         |
 | Current status      | `order_status`    | `fulfillment_state` |
+| Ship (recognition) date | `ship_date`   | `ship_date`         |
+| Refund date         | `refund_date`     | `refund_date`       |
+| Refund amount       | `refund_amount`   | `refund_amount`     |
 | Product identifier  | `sku`             | `product_code`      |
 | Line number         | `line_item_no`    | `item_seq`          |
 | Quantity            | `quantity`        | `units`             |
@@ -36,7 +39,15 @@ Both shards contain the same underlying fields, but their source naming conventi
 | Shipping country    | `ship_to_country` | `ship_to_country`   |
 | Customer email      | `customer_email`  | `contact_email`     |
 
-The US shard uses USD and US shipping addresses. The EU shard uses EUR or GBP and a small set of EU shipping countries. Prices and tax amounts are decimal values serialized to two decimal places.
+The US shard uses USD and US shipping addresses. The EU shard uses EUR or GBP and a small set of EU shipping countries. Prices and tax amounts are decimal values serialized to two decimal places. `ship_date`/`refund_date`/`refund_amount` are blank (loaded as `NULL`) whenever they don't apply to an order's current status -- see "Order status lifecycle and revenue recognition" below.
+
+## Shared order pool
+
+`data_gen/order_pool.py` exposes `build_order(region, order_number)`, the order-level analogue of the shared identity pool below: a pure function of its two arguments plus the fixed `ORDER_POOL_SEED` (20260911), returning one order's full deterministic truth -- its customer, items, dollar amounts, lifecycle status, ship/refund timing, checkout promo outcome, and whether it has a corresponding web purchase event. `erp.py`, `clickstream.py`, and `crm.py` each call it directly; none of them reads another script's output file. This exists because Phase 5B pre-work (Issue #42) needs ERP, web, and CRM to reference the *same* order/transaction identifiers -- something none of the three needed before (they only ever shared *customer* identity, via the identity pool). See ADR-009 in `docs/data_modeling_decisions.md` for why a shared deterministic pool, not a file-read dependency between scripts, is the right mechanism.
+
+`order_id_for(region, order_number)` (`f"{region}-{order_number:06d}"`) is the order identifier itself -- a pure string formula requiring no randomness, reused verbatim as web's `transaction_id` and as the value a CRM refund ticket's `order_reference` is agent-typed against. `erp.py` only ever emits rows for `order_number` in `1..orders_per_region`; any higher `order_number` is, by construction, never a real order. `ghost_order_number(orders_per_region, rng)` picks one of those never-real numbers (from a 200-wide range immediately past the real one, per region) using the *caller's own* locally-seeded `rng` -- unlike `build_order()` itself, this doesn't need to be pool-deterministic, since a web orphan transaction id and a CRM nonexistent order reference are independent phenomena that don't need to correlate with each other.
+
+**`--orders-per-region` must be passed identically to `erp.py`, `clickstream.py`, and `crm.py`** for their order references to actually correlate -- if the three scripts disagree on this value, web/CRM will treat some real ERP orders as ghosts (or vice versa) purely from an inconsistent universe size, not from any of the deliberate injected-messiness mechanisms below.
 
 ## Shared identity pool
 
@@ -58,13 +69,32 @@ The genuine, deterministic join key between US and EU (and between ERP and CRM) 
 
 The two extracts deliberately use different names for most shared fields. This represents independently maintained regional ERP schemas and requires explicit mapping in staging models. The values remain structurally comparable so the later union can be tested without inventing a source-specific business rule.
 
-### Destructive status updates
+### Order status lifecycle and revenue recognition
 
-Every generated order starts with `pending`. Its same status field is then overwritten in place with `shipped`; 82% of orders are overwritten again with `delivered`. Only the final value is written to the CSV. There is no status history, update timestamp, or event table. This simulates a source system whose operational table does not provide change tracking and means downstream models cannot reconstruct when an order changed state.
+Every generated order follows one destructive (history-free, only-the-final-value-persists) lifecycle: `pending` → `shipped` → `delivered` → `returned`, with `cancelled` reachable at any point before shipping as a distinct terminal state -- an order that was never fulfilled at all, not one that was fulfilled and then reversed. As before, there is no status history, update timestamp, or event table; only the final value is written to the CSV, and all item rows for an order share it.
 
-Tax is computed as `unit_price * quantity * tax_rate`, using an 8% tax rate for US orders and a 20% VAT rate for EU orders.
+- **`cancelled`** (4% of orders): rolled before shipping ever happens. `ship_date`/`refund_date`/`refund_amount` are all blank.
+- **`pending`**: an order placed close enough to `AS_OF_DATE` (2025-12-31) that it wouldn't have shipped yet as of the snapshot. A small, real population (7/1,000 in the current default dataset) -- not vacuous, but deliberately rare, since most of the 365-day order window has had time to ship. `ship_date` is blank.
+- **`shipped`** / **`delivered`**: shipped orders get a `ship_date` 1-5 days after `order_date` -- this is the **recognition timestamp**, distinct from `order_date` (see policy below). 82% of shipped, non-returned orders progress to `delivered`; the rest remain `shipped` (in transit as of the snapshot).
+- **`returned`** (19.3% of orders): only reachable from a shipped order. `refund_date` is 5-45 days after `ship_date` -- **deliberately not clamped to the same calendar month or even the same fixed `AS_OF_DATE` window as `order_date`/`ship_date`** (see "Fixed date window, extended for refunds" below). `refund_amount` is the order's actual recognized total (post any validated checkout promo -- see "Checkout promo / amount-divergence mechanism" below), i.e. a full-order refund; partial/line-level returns are out of scope for this dataset.
 
-All item rows for an order share the order's current status. This preserves a consistent order-level status while retaining item-level revenue records.
+Tax is still computed as `unit_price * quantity * tax_rate` (8% US, 20% EU), applied per line item to whatever `unit_price` that line ends up with after any validated promo discount.
+
+**Return and cancellation rates are real, cited figures, not blanket guesses.** NRF/Happy Returns' "2025 Retail Returns Landscape" puts the 2025 online-retail return rate at 19.3% (up from 17.6% in 2024) -- the most-cited current benchmark for general-merchandise online returns, and considerably higher than a flat 5-10% assumption. This dataset uses 19.3% as a single blended rate: it has no product-category concept, and inventing one solely to size a return rate would be exactly the premature abstraction this project's ADRs (e.g. ADR-006's flat-list country var) avoid building ahead of need. Cancellation uses a separate, smaller rate (4%), inside the 2-8% band industry sources report for healthy ecommerce operations (Amazon, held up as the operational benchmark, targets under 2.5%) -- a cancellation is a distinct phenomenon (never fulfilled) from a return (fulfilled, then reversed), so the two rates are independent, not derived from one another.
+
+### Revenue-recognition policy (the generator's actual contract)
+
+**`recognized_net_revenue` for period P = ERP line-item amounts (`unit_price * quantity + tax_amount`) whose `ship_date` falls in P, minus `refund_amount` for any order whose `refund_date` falls in P. Cancelled orders, and orders that have not yet shipped (`pending`), are excluded entirely.**
+
+Recognition is keyed on **`ship_date`, not `order_date`**: an order-create-based policy would recognize revenue at the moment of purchase, which would shrink or eliminate the real cutoff problem this dataset exists to create (a customer completing checkout in one period whose order isn't recognized as shipped revenue until a later one). Ship-based recognition is the one that produces a genuine timing gap, and it's what the generated data actually supports -- checked directly, not assumed: of the 195 returned orders in the current default dataset, 146 (74.9%) have `refund_date` falling in a different calendar month than `ship_date`. This policy statement is this branch's actual contract for the generator, not documentation written after the fact -- `order_pool.build_order()`'s lifecycle logic was built to conform to it (see the `ship_date`/`refund_date` construction above), and every number in this section and in ADR-009 was verified against the real generated/loaded data.
+
+### Fixed date window, extended for refunds
+
+`order_date` (and `ship_date`, `checkout_date` on web purchase events) stay inside the existing fixed window anchored to `AS_OF_DATE = 2025-12-31` (365 days back through that date). `refund_date` is deliberately allowed to extend up to 45 days **past** `AS_OF_DATE` (through 2026-02-14, `order_pool.REFUND_WINDOW_END`) -- clamping every refund to the same as-of snapshot as new order intake would silently erase the later-period reversal this whole branch exists to create; a return's refund is the tail of a process that can genuinely land after the snapshot that captured the order that started it. CRM refund tickets' `created_date` (see below) uses the same extended bound. This is a deliberate, documented widening of the fixed-window discipline established for `order_date`/`created_date` elsewhere, not a reintroduction of `date.today()` drift -- both bounds are still fixed constants.
+
+### Checkout promo / amount-divergence mechanism
+
+A documented, real arithmetic mechanism -- not noise sampled from a distribution -- creates the amount mismatches web/ERP reconciliation needs to find. 18% of orders have a checkout-time promotional discount (10% off) applied. Of those, 30% fail ERP's backend eligibility validation: the discount is honored at checkout (what the customer saw, and what web's `checkout_total` reflects) but ERP charges full price (what the stored line items, and therefore `refund_amount` if returned, actually reflect). The remaining 70% validate, and the discount is baked into the stored line items themselves, so ERP's recognized amount and web's checkout total genuinely agree. See "Web clickstream source" below for how this surfaces on the web side, and ADR-009 for the measured breakdown.
 
 ### Repeated order identifiers
 
@@ -72,11 +102,7 @@ Orders contain one to four items, so their order identifier repeats across rows.
 
 ### Synthetic values
 
-Faker supplies dates, while seeded pseudo-random generation supplies customers, products, quantities, prices, tax, currencies, and item counts. The data is fictional and contains no production customer information. The default seed makes local regeneration reproducible for dbt development and tests.
-
-### Fixed date window
-
-`order_date` is drawn from a fixed window anchored to `AS_OF_DATE = 2025-12-31` (365 days back through that date), the same fixed reference date `clickstream.py` uses for `EVENT_END`. Earlier revisions of `erp.py` (and `crm.py`) derived this window from `date.today()`, which meant every date value silently drifted forward on each regeneration even with the seed held fixed -- only the RNG-driven content (currencies, statuses, item counts, etc.) was actually reproducible. Keep all three generators' date windows pinned to fixed constants; do not reintroduce `date.today()` into any of them.
+Faker supplies dates, while seeded pseudo-random generation supplies customers, products, quantities, prices, tax, currencies, and item counts (via the shared, seed-independent order pool -- see above). The data is fictional and contains no production customer information.
 
 ## Web clickstream source
 
@@ -84,13 +110,32 @@ Faker supplies dates, while seeded pseudo-random generation supplies customers, 
 
 - `data/CLICKSTREAM_EVENTS.json`
 
-The file is newline-delimited JSON: each line is one event object, matching the shape loaded into a Snowflake `VARIANT` column. Events are at event grain and include page views, cart additions, and search queries. Run the generator from the repository root with:
+The file is newline-delimited JSON: each line is one event object, matching the shape loaded into a Snowflake `VARIANT` column. Events are at event grain and include page views, cart additions, search queries, and purchases. Run the generator from the repository root with:
 
 ```text
 python data_gen/clickstream.py
 ```
 
-The default is 1,000 canonical events plus injected duplicates, with a repeatable seed. Use `--events`, `--seed`, or `--output-dir` to override those defaults.
+The default is 9,600 canonical (page_view/cart_addition/search_query) events plus injected duplicates, plus purchase events (sized by real ERP order coverage, not independently -- see "Purchase events" below). Use `--events`, `--seed`, `--orders-per-region`, or `--output-dir` to override the defaults; `--orders-per-region` must match `erp.py`'s own value (see "Shared order pool" above).
+
+#### Purchase events
+
+`purchase` is a rare event type layered on top of the original three, correlated to real ERP orders via the shared order pool. Its volume is emergent, not an independently-dialed rate: `order_pool.WEB_MATCH_RATE` (35% of real ERP orders get a matching purchase event -- see "Order coverage gaps" below) times the default 1,000 real orders is ~350 matched events, plus a documented 12% orphan share (`WEB_ORPHAN_SHARE_OF_PURCHASE_EVENTS`) brings the total to ~400. `DEFAULT_EVENT_COUNT` (9,600, up from this generator's original 1,000) was sized specifically so that ~400 purchase events land at a "low single digits" share (~4.0%) of the combined total (~10,000) once purchase events are added -- deliberately not an even split with the other three event types. A realistic global ecommerce conversion rate is 2.5-3% (Contentsquare, Q3 2025); 4% here is close to that while accounting for this generator's event-level (not session-level) approximation of "conversion." Each purchase event carries:
+
+- `transaction_id` -- the order_id of the order pool order it corresponds to (real or ghost -- see "Order coverage gaps").
+- `checkout_total` -- the customer-facing total computed at checkout time (see "Amount-divergence mechanism" in the ERP section above for how/when this can diverge from ERP's actual recognized amount).
+- `currency` -- matching that order's currency, so a future consumer comparing amounts knows what they're comparing.
+
+The purchase timestamp uses the order's own `order_date` (checkout time), never `ship_date` -- free to fall in an earlier calendar month than ERP's ship-based recognition, which is the actual source of the cutoff problem (not amount drift). Purchase events carry an identity-capture signal exactly like the other three event types (see "Sparse, tiered-dirty customer identity capture" below), at a distinctly higher rate (90% -- a completed checkout collects a contact email for the receipt almost every time, more certain than `cart_addition`, which a browser can still abandon before handing over contact details). Purchase events are **not** subject to the pixel-retry-duplicate or late-arrival mechanics below -- those remain scoped, unchanged, to the original three event types.
+
+#### Order coverage gaps
+
+Coverage is imperfect in both directions, at distinct, documented rates -- neither is small, and they don't need to be equal:
+
+- **35% of real ERP orders have a matching purchase event** (`order_pool.WEB_MATCH_RATE`); the other 65% don't -- representing phone/in-store/ad-blocked-or-declined-pixel channels a general-merchandise omnichannel retailer's web analytics never observes. This is deliberately the majority of orders, not a small tail: a real retailer's other-channel/missed-pixel share of order volume is realistically substantial.
+- **12% of all purchase events reference a transaction_id with no real ERP order at all** (`order_pool.WEB_ORPHAN_SHARE_OF_PURCHASE_EVENTS`) -- representing a checkout that failed payment before the order ever persisted in ERP. These orphan transaction_ids are drawn from `order_pool.ghost_order_number()`'s never-real range (200-wide per region -- wide enough that independent random draws for the default ~45-50 orphans per run don't collide with each other via the birthday paradox, checked directly).
+
+See ADR-009 for the measured breakdown against the current default dataset.
 
 ### Injected messiness
 
@@ -143,7 +188,7 @@ Run the generator from the repository root with:
 python data_gen/crm.py
 ```
 
-The default is 350 accounts and 900 tickets, with a repeatable seed. Use `--accounts`, `--tickets`, `--seed`, or `--output-dir` to override those defaults.
+The default is 350 accounts and 900 general tickets, plus refund tickets sized by real ERP return volume (see "Refund tickets" below), with a repeatable seed. Use `--accounts`, `--tickets`, `--seed`, `--orders-per-region`, or `--output-dir` to override those defaults; `--orders-per-region` must match `erp.py`'s own value (see "Shared order pool" above).
 
 ### Schema
 
@@ -158,7 +203,7 @@ The default is 350 accounts and 900 tickets, with a repeatable seed. Use `--acco
 | `created_date`      | Date the account was created in the CRM    |
 | `last_seen_date`     | Date of the account's most recent activity |
 
-`CRM_TICKETS.csv` columns: `ticket_id`, `account_id`, `category`, `created_date`, `status`.
+`CRM_TICKETS.csv` columns: `ticket_id`, `account_id`, `category`, `created_date`, `status`, `claimed_amount`, `order_reference`. `claimed_amount`/`order_reference` are blank (loaded as `NULL`) for every category except `refund` -- the same category-conditional-nullability pattern web's event-type-specific fields already use.
 
 `account_id` is CRM's own independently assigned identifier — a sequential `ACCT-#####` counter with no digit relationship to the shared identity pool's customer index or to ERP's `CUST-#####`/`client_ref` values. This mirrors the ERP↔CRM design already described above: a real CRM mints its own primary keys, and the genuine join back to the identity pool (and therefore to ERP) is `contact_email`, resolved from `build_identity_pool(IDENTITY_POOL_SEED)` by a randomly chosen customer index, exactly as `erp.py` does. `contact_email` is written unmodified from the pool, so the join on email stays exact by design.
 
@@ -172,12 +217,23 @@ The default is 350 accounts and 900 tickets, with a repeatable seed. Use `--acco
 
 Approximately 3-5% of the `account_id` values referenced in `CRM_TICKETS.csv` do not appear in `CRM_CUSTOMERS.csv` at all. These ghost account IDs are drawn from a number range immediately past the real account range, so they can never collide with a real account, and simulate accounts that were deleted from the CRM while their ticket history was retained. They are detectable with a simple anti-join of `CRM_TICKETS.csv.account_id` against `CRM_CUSTOMERS.csv.account_id`.
 
-The data is fictional and contains no production customer information. The default seed makes local regeneration reproducible for dbt development and tests.
+#### Refund tickets
+
+`category == "refund"` tickets extend the ghost-reference mechanism above from accounts to orders. Each is anchored to a real, `status == "returned"` order from the shared order pool -- the underlying customer complaint is always real -- but what the agent actually typed into `order_reference`, and whether ERP has since caught up, both vary:
+
+- **Reference correctness** (mirroring `GHOST_ACCOUNT_RATE`'s proportions -- a minority pattern, not a headline-sized fraction): ~90% reference the correct real order. A smaller tail (~6%, `REFUND_REF_WRONG_VALID_RATE`) is a transposition-style typo (`transpose_order_number()`, bounded and checked exactly like clickstream's own single-character-typo mechanism) landing on a **different, real, existing** order -- the dangerous "wrong-but-valid" case: a confident wrong match, not an obvious miss, and one that can coincidentally still resolve to another returned order (indistinguishable from a correct reference by a simple anti-join alone -- see ADR-009's measured breakdown). A smaller tail still (~4%, `REFUND_REF_NONEXISTENT_RATE`) reuses the ghost-order mechanism (`order_pool.ghost_order_number()`) to reference an order that doesn't exist at all.
+- **Open vs. posted**: ~35% of refund tickets are `open`/`pending` -- an operational event (the customer's complaint) that hasn't yet been reflected in ERP's own `refund_date`/`refund_amount`. The remaining ~65% are `resolved`/`closed` ("posted"): ERP has since caught up, and `claimed_amount` should mostly match ERP's actual `refund_amount`.
+- **Posted-amount mismatch**: of posted tickets whose reference resolves to a real order, ~10% (`REFUND_POSTED_MISMATCH_RATE`) have a `claimed_amount` that differs from ERP's `refund_amount` by a flat shipping/tax-like adjustment (`REFUND_MISMATCH_ADJUSTMENTS`, ±\$5.99-\$12.99) -- representing an agent who forgot to include or exclude shipping/tax in what they typed, a real bounded clerical error, not noise.
+- More than one ticket may reference the same order (a customer calling twice, or a duplicate contact) -- ticket count per order is never artificially capped at one.
+
+Ticket count is `round(returned_order_count * REFUND_TICKET_MULTIPLIER)` (1.15) -- emergent from real ERP return volume, not an independent dial: some returned orders draw more than one contact, others draw none (self-service return, no CRM contact at all).
+
+The data is fictional and contains no production customer information.
 
 ### Fixed date window
 
-`created_date`, `last_seen_date` (accounts), and `created_date` (tickets) are all drawn from windows anchored to the same fixed `AS_OF_DATE = 2025-12-31` reference date `erp.py` and `clickstream.py` use, not `date.today()` -- see [Fixed date window](#fixed-date-window) above for why this matters for reproducibility.
+`created_date`, `last_seen_date` (accounts), and `created_date` (general tickets) are all drawn from windows anchored to the same fixed `AS_OF_DATE = 2025-12-31` reference date `erp.py` and `clickstream.py` use, not `date.today()` -- see "Fixed date window, extended for refunds" above for why this matters for reproducibility. Refund tickets' `created_date` is anchored to the anchor order's `refund_date` (± a few days) and uses that same section's extended upper bound (`order_pool.REFUND_WINDOW_END`, 2026-02-14), not the un-extended `AS_OF_DATE`.
 
 ## Deliberate non-messiness
 
-This Phase 1 extract does not inject nulls, duplicate line keys, invalid dates, or mismatched totals. Those defects would test data-quality handling rather than the specific regional-sharding, destructive-update, and order-item-grain behaviors required here. Web clickstream's `user_email`/`customer_global_email` being absent on most events (see "Sparse, tiered-dirty customer identity capture" above) is not an exception to this -- it's not an injected data-quality defect, it's the field legitimately having no value most of the time, the same way `page_url` legitimately has no value on a `search_query` event.
+This Phase 1 extract does not inject nulls, duplicate line keys, invalid dates, or mismatched totals. Those defects would test data-quality handling rather than the specific regional-sharding, destructive-update, and order-item-grain behaviors required here. Web clickstream's `user_email`/`customer_global_email` being absent on most events (see "Sparse, tiered-dirty customer identity capture" above) is not an exception to this -- it's not an injected data-quality defect, it's the field legitimately having no value most of the time, the same way `page_url` legitimately has no value on a `search_query` event. The same reasoning applies to ERP's `ship_date`/`refund_date`/`refund_amount` (blank for `pending`/`cancelled`/non-returned orders) and CRM's `claimed_amount`/`order_reference` (blank outside `category == "refund"`) added in Phase 5B pre-work -- legitimate status/category-conditional absence, not injected data-quality defects.

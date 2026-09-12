@@ -13,10 +13,22 @@ from typing import Any
 from faker import Faker
 
 from identity_pool import IDENTITY_POOL_SEED, build_identity_pool
+from order_pool import (
+    DEFAULT_ORDERS_PER_REGION,
+    REGIONS,
+    WEB_ORPHAN_SHARE_OF_PURCHASE_EVENTS,
+    build_order,
+    ghost_order_number,
+)
 
 
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data"
-DEFAULT_EVENT_COUNT = 1_000
+# DEFAULT_EVENT_COUNT covers only the three original, non-order-grain event
+# types (page_view/cart_addition/search_query); purchase events are layered
+# on top, sized by real ERP order coverage rather than by this flag -- see
+# "purchase event volume" below for why this default grew ~10x from this
+# generator's original 1,000.
+DEFAULT_EVENT_COUNT = 9_600
 EVENT_START = date(2025, 1, 5)
 EVENT_END = date(2025, 12, 31)
 SCHEMA_CUTOFF = date(2025, 7, 1)
@@ -25,6 +37,18 @@ LATE_EVENT_RATE = 0.02
 
 PAGE_PATHS = ("/", "/products", "/products/analytics", "/account", "/checkout")
 SEARCH_QUERIES = ("running shoes", "wireless headphones", "coffee maker", "laptop stand")
+
+# purchase event volume: real ERP order coverage (order_pool.WEB_MATCH_RATE,
+# 35% of orders) plus its documented orphan share (12% of purchase events,
+# WEB_ORPHAN_SHARE_OF_PURCHASE_EVENTS) drives how many purchase events exist
+# at all -- it is not an independent dial. Against the default 1,000
+# real orders (500/region), that's ~350 matched + ~48 orphans = ~398
+# purchase events. DEFAULT_EVENT_COUNT (9,600) was chosen so that ~398 stays
+# a "low single digits" share (~4.0%) of the combined total (~9,998) once
+# purchase events are added -- see docs/data_modeling_decisions.md ADR-009.
+# A realistic global ecommerce conversion rate is 2.5-3% (Contentsquare,
+# Q3 2025); 4% here is close to that while accounting for this generator's
+# event-level (not session-level) approximation of "conversion."
 
 # Per-event-type probability that a web analytics pixel actually captures a
 # customer identity signal at all. Real ecommerce analytics identifies the
@@ -42,6 +66,14 @@ IDENTITY_CAPTURE_RATE_BY_EVENT_TYPE = {
     "page_view": 0.08,
     "search_query": 0.08,
     "cart_addition": 0.55,
+    # A completed checkout collects a contact email for the order
+    # confirmation/receipt almost every time -- materially more certain than
+    # cart_addition, which a browser can still abandon without ever handing
+    # over contact details. Not 100%: a small guest-checkout slice still
+    # goes untracked by the analytics pixel itself (an ad blocker, a
+    # server-side-only checkout flow), independent of whether ERP received
+    # the order.
+    "purchase": 0.90,
 }
 
 # Among captured identity signals, how the observed value relates to the
@@ -92,6 +124,15 @@ def parse_args() -> argparse.Namespace:
         help="Seed for repeatable events (default: 20260904).",
     )
     parser.add_argument(
+        "--orders-per-region",
+        type=int,
+        default=DEFAULT_ORDERS_PER_REGION,
+        help=f"Real ERP orders per region to check for web purchase-event coverage "
+        f"(default: {DEFAULT_ORDERS_PER_REGION}). Must match the value passed to "
+        "erp.py's own --orders-per-region for purchase events' transaction_ids to "
+        "correlate against real orders -- see data_gen/order_pool.py.",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=DEFAULT_OUTPUT_DIR,
@@ -100,6 +141,8 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.events < 1:
         parser.error("--events must be at least 1")
+    if args.orders_per_region < 1:
+        parser.error("--orders-per-region must be at least 1")
     return args
 
 
@@ -164,6 +207,27 @@ def apply_single_character_typo(email: str, rng: random.Random, all_emails: set[
     return email
 
 
+def roll_identity_capture(
+    event_type: str,
+    canonical_email: str,
+    rng: random.Random,
+    all_emails: set[str],
+) -> tuple[str | None, str, bool]:
+    """Shared capture/dirty-tier roll used by every event type, purchase included."""
+    captured = rng.random() < IDENTITY_CAPTURE_RATE_BY_EVENT_TYPE[event_type]
+    identity_email = None
+    dirt_tier = ""
+    if captured:
+        dirt_roll = rng.random()
+        if dirt_roll < CAPTURED_EXACT_RATE:
+            identity_email, dirt_tier = canonical_email, "exact"
+        elif dirt_roll < CAPTURED_EXACT_RATE + CAPTURED_TIER1_RATE:
+            identity_email, dirt_tier = apply_trivial_normalization_noise(canonical_email, rng), "tier1"
+        else:
+            identity_email, dirt_tier = apply_single_character_typo(canonical_email, rng, all_emails), "tier2"
+    return identity_email, dirt_tier, captured
+
+
 def build_event(
     fake: Faker,
     rng: random.Random,
@@ -188,18 +252,7 @@ def build_event(
     # identity field at all regardless of whose traffic it truly is.
     customer_index = rng.randint(1, 350)
     canonical_email = email_by_index[customer_index]
-
-    captured = rng.random() < IDENTITY_CAPTURE_RATE_BY_EVENT_TYPE[event_type]
-    identity_email = None
-    dirt_tier = ""
-    if captured:
-        dirt_roll = rng.random()
-        if dirt_roll < CAPTURED_EXACT_RATE:
-            identity_email, dirt_tier = canonical_email, "exact"
-        elif dirt_roll < CAPTURED_EXACT_RATE + CAPTURED_TIER1_RATE:
-            identity_email, dirt_tier = apply_trivial_normalization_noise(canonical_email, rng), "tier1"
-        else:
-            identity_email, dirt_tier = apply_single_character_typo(canonical_email, rng, all_emails), "tier2"
+    identity_email, dirt_tier, captured = roll_identity_capture(event_type, canonical_email, rng, all_emails)
 
     event: dict[str, Any] = {
         "event_id": fake.uuid4(),
@@ -219,6 +272,57 @@ def build_event(
         event["quantity"] = rng.randint(1, 3)
     else:
         event["search_query"] = rng.choice(SEARCH_QUERIES)
+
+    truth: dict[str, Any] = {
+        "event_id": event["event_id"],
+        "customer_index": customer_index,
+        "canonical_email": canonical_email,
+        "captured": captured,
+        "dirt_tier": dirt_tier,
+        "observed_value": identity_email or "",
+    }
+    return event, truth
+
+
+def build_purchase_event(
+    order: dict[str, Any],
+    fake: Faker,
+    rng: random.Random,
+    email_by_index: dict[int, str],
+    all_emails: set[str],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Build one purchase event from an order_pool order (real or ghost).
+
+    `order["order_id"]` becomes `transaction_id` -- this project's shared
+    order pool is exactly what makes this correlatable to ERP. The checkout
+    timestamp uses the order's own order_date (never ship_date): checkout is
+    the moment the customer completed payment, which is what a real
+    analytics pixel would timestamp, and which is free to land in an earlier
+    calendar month than ERP's ship_date-based recognition -- see ADR-009.
+    Not subject to the pixel-retry-duplicate or late-arrival mechanics below
+    (those remain scoped to the original three event types, unchanged).
+    """
+    event_date = order["order_date"]
+    timestamp = build_event_timestamp(event_date, rng)
+    ingested_at = build_ingested_at(timestamp, rng, late=False)
+
+    customer_index = order["customer_index"]
+    canonical_email = email_by_index[customer_index]
+    identity_email, dirt_tier, captured = roll_identity_capture("purchase", canonical_email, rng, all_emails)
+
+    event: dict[str, Any] = {
+        "event_id": fake.uuid4(),
+        "event_timestamp": f"{timestamp.isoformat()}Z",
+        "event_date": event_date.isoformat(),
+        "ingested_at": f"{ingested_at.isoformat()}Z",
+        "session_id": f"SESSION-{rng.randint(1, 500):06d}",
+        "event_type": "purchase",
+        "transaction_id": order["order_id"],
+        "checkout_total": f"{order['checkout_total']:.2f}",
+        "currency": order["currency"],
+    }
+    if identity_email is not None:
+        event["user_email" if event_date < SCHEMA_CUTOFF else "customer_global_email"] = identity_email
 
     truth: dict[str, Any] = {
         "event_id": event["event_id"],
@@ -260,7 +364,42 @@ def write_identity_truth_csv(path: Path, truth_records: list[dict[str, Any]]) ->
         writer.writerows(truth_records)
 
 
-def generate_events(event_count: int, seed: int, output_dir: Path) -> None:
+def build_purchase_events(
+    orders_per_region: int,
+    rng: random.Random,
+    fake: Faker,
+    email_by_index: dict[int, str],
+    all_emails: set[str],
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    """Build every purchase event: one per real order with web coverage, plus orphans.
+
+    Coverage (order_pool.WEB_MATCH_RATE) and the orphan share
+    (order_pool.WEB_ORPHAN_SHARE_OF_PURCHASE_EVENTS) are both emergent from
+    the shared order pool, not independently dialed here -- see ADR-009.
+    """
+    all_real_orders = [
+        build_order(region, order_number)
+        for region in REGIONS
+        for order_number in range(1, orders_per_region + 1)
+    ]
+    matched = [order for order in all_real_orders if order["has_web_purchase"]]
+
+    orphan_count = round(
+        len(matched) * WEB_ORPHAN_SHARE_OF_PURCHASE_EVENTS / (1 - WEB_ORPHAN_SHARE_OF_PURCHASE_EVENTS)
+    )
+    orphan_orders = []
+    for _ in range(orphan_count):
+        region = rng.choice(REGIONS)
+        ghost_number = ghost_order_number(orders_per_region, rng)
+        orphan_orders.append(build_order(region, ghost_number))
+
+    return [
+        build_purchase_event(order, fake, rng, email_by_index, all_emails)
+        for order in matched + orphan_orders
+    ]
+
+
+def generate_events(event_count: int, seed: int, orders_per_region: int, output_dir: Path) -> None:
     """Generate and write a reproducible clickstream extract."""
     rng = random.Random(seed)
     fake = Faker()
@@ -280,6 +419,11 @@ def generate_events(event_count: int, seed: int, output_dir: Path) -> None:
 
     duplicate_count = max(1, round(event_count * DUPLICATE_RATE))
     events.extend(dict(events[index]) for index in rng.sample(range(event_count), duplicate_count))
+
+    purchase_built = build_purchase_events(orders_per_region, rng, fake, email_by_index, all_emails)
+    events.extend(event for event, _truth in purchase_built)
+    truth_records.extend(truth for _event, truth in purchase_built)
+
     rng.shuffle(events)
 
     write_json_lines(output_dir / "CLICKSTREAM_EVENTS.json", events)
@@ -288,4 +432,4 @@ def generate_events(event_count: int, seed: int, output_dir: Path) -> None:
 
 if __name__ == "__main__":
     arguments = parse_args()
-    generate_events(arguments.events, arguments.seed, arguments.output_dir)
+    generate_events(arguments.events, arguments.seed, arguments.orders_per_region, arguments.output_dir)

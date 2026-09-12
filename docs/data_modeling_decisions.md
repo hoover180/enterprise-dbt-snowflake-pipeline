@@ -594,3 +594,114 @@ The critical result is the last row: 28 events, spanning 28 distinct customers, 
 - `customer_email`'s content (real-looking email addresses, same as ERP/CRM's existing `customer_email`/`contact_email` columns) is unmasked at the RAW/staging layer, same as ERP/CRM already are -- this is not a new PII-handling gap this fix introduces. `EMAIL_MASK` (ADR-001) is deliberately not yet attached to any column project-wide; it's scoped to attach to `dim_customer_360.contact_email` in Phase 6, once that gold model exists.
 - `data_gen/load_raw.py` gained a repeatable `--table` flag so a single source (here, `RAW_WEB_EVENTS`) can be reloaded without touching the other four tables' `CREATE OR REPLACE TABLE` -- useful any time only one generator changes, not just this fix.
 - Phase 5A's identity-resolution model was deliberately not touched in this branch -- it now has a genuine, measured, non-trivial matching problem to solve when it starts, instead of an exact key masquerading as one.
+
+## ADR-009: Revenue reconciliation is unbuildable without it -- ERP lifecycle/refunds, web purchase events, CRM refund tickets, and the shared order pool
+
+**Status:** Accepted (2026-09-11).
+**Phase:** Phase 5B pre-work (Issue #42), the same category of pre-work ADR-008 was for Phase 5A: this branch fixes the three synthetic-data generators so a genuine, multi-dimension revenue-reconciliation problem exists in the raw data, ahead of Phase 5B's own reconciliation fact and Phase 6's bridge mart, neither of which is built here. No dbt staging model is touched in this branch -- exposing the new raw fields in `stg_erp__orders`/`stg_web__events`/`stg_crm__tickets` is the next branch.
+
+### Context
+
+The build plan's stated business problem is "Finance can't produce a trusted revenue number without a manual reconciliation exercise every close." That problem was unbuildable on the data as it stood: only ERP carried any dollar figure at all, CRM and web had none, and ERP itself had no return/cancellation lifecycle, no recognition timestamp distinct from order creation, and no refund fields. This is the same class of gap ADR-008 found and fixed for web identity (a Phase 1 build gap relative to the stated Phase 5 design) -- just for revenue instead of identity.
+
+### Decision: a shared, deterministic order pool (`data_gen/order_pool.py`), not a file-read dependency
+
+This work requires ERP, web, and CRM to reference the *same* order/transaction identifiers -- something none of the three needed before (they only ever shared *customer* identity, via `identity_pool.py`, never *order-level* identity). Two mechanisms were considered:
+
+1. **One script writes an intermediate file the others read** (e.g. `erp.py` runs first and emits an order manifest; `clickstream.py`/`crm.py` read it). Rejected: this introduces a real execution-order dependency the three generator scripts have never had (today they run independently, in any order) -- and it would make `clickstream.py`/`crm.py` silently wrong if run against a stale manifest from a previous `erp.py` run with a different `--orders-per-region`.
+2. **A shared, deterministic pool** (`data_gen/order_pool.py`, exposing `build_order(region, order_number)`), analogous to `identity_pool.py`. Chosen: this matches the project's own existing architecture precedent exactly, and preserves the property that all three scripts remain independently runnable in any order.
+
+`build_order()` is a pure function of `(region, order_number)` plus the fixed `ORDER_POOL_SEED` (20260911) -- not each script's own `--seed`, for the same reason `identity_pool.py` decouples customer identity from `--seed`: three scripts needing to agree on content can't have that content depend on which one happened to run, or with what seed. It returns the order's full deterministic truth in one call: customer, item lines (with any promo discount already applied and quantized), lifecycle status, `ship_date`/`refund_date`/`refund_amount`, the checkout promo outcome, and whether it has a matching web purchase event. `erp.py`, `clickstream.py`, and `crm.py` each call it directly and read only the fields they need; none of them mutates or persists it for another script to read.
+
+**A consequence, accepted deliberately:** `erp.py` no longer accepts a `--seed` argument at all. Every order-level fact that used to be `erp.py`'s own private randomness now lives in the pool, and there is no remaining script-local randomness left to seed -- keeping a dead `--seed` parameter around would be exactly the kind of leftover surface this project's own conventions avoid. `clickstream.py` and `crm.py` keep their own `--seed` (it still controls each script's independent decisions -- which specific duplicates/late events, which specific ghost slot, etc.) but both gained `--orders-per-region`, which **must be passed identically to `erp.py`'s own value** for order references to actually correlate; passing mismatched values silently breaks correlation from an inconsistent universe size, not from any of the deliberate mechanisms below.
+
+`order_id_for(region, order_number)` is a pure string formula (`f"{region}-{order_number:06d}"`) requiring no randomness at all -- any script can compute it without calling `build_order()`. `erp.py` only ever emits rows for `order_number in 1..orders_per_region`; any higher number is, by construction, never a real order. `ghost_order_number(orders_per_region, rng)` picks one of those never-real numbers from a 200-wide per-region range, using the *caller's own* locally-seeded `rng` (not pool-deterministic) -- a web orphan transaction id and a CRM nonexistent order reference are independent phenomena that don't need to correlate with each other, so there's no reason to force them through the same seeded pool the way `build_order()`'s content is. **Found and fixed during implementation:** the range was first sized at 25 (matching `crm.py`'s existing `GHOST_ACCOUNT_POOL_SIZE`), and web's ~45-50 independent orphan draws per default run collided with each other via the birthday paradox -- checked directly, not assumed: 382 purchase events, only 368 distinct `transaction_id` values. Widened to 200; re-verified with 0 collisions (382 purchase events, 382 distinct `transaction_id`).
+
+### Decision: ERP status lifecycle, `ship_date`, `refund_date`/`refund_amount`
+
+Status becomes `pending` → `shipped` → `delivered` → `returned`, with `cancelled` reachable at any point before shipping as a distinct terminal state (never fulfilled at all, not fulfilled-then-reversed). `ship_date` (1-5 days after `order_date`) is the recognition timestamp; it's `null` for `pending`/`cancelled` orders. `refund_date` (5-45 days after `ship_date`) and `refund_amount` (the order's actual recognized total) are set only for `returned` orders.
+
+**Rates are real, cited figures.** NRF/Happy Returns' "2025 Retail Returns Landscape" puts the 2025 online-retail return rate at 19.3% (up from 17.6% in 2024) -- the most-cited current benchmark for general-merchandise online returns and considerably higher than a flat 5-10% guess. Used as a single blended rate rather than a per-category rate: this dataset has no product-category concept, and inventing one solely to size a return rate would be the same premature abstraction ADR-006 explicitly avoided for CRM's country var. Cancellation uses a separate, smaller, independently-documented rate (4%), inside the 2-8% band industry sources report for healthy ecommerce operations (Amazon, held up as the operational benchmark, targets under 2.5%).
+
+Verified directly against the loaded default dataset (1,000 orders, 500/region): **cancelled 39 (3.9%), pending 7 (0.7%), shipped 134 (13.4%), delivered 625 (62.5%), returned 195 (19.5%)** -- both rates land almost exactly on their targets (19.3%/4.0%). `pending` is deliberately small but non-vacuous: only orders placed close enough to `AS_OF_DATE` (2025-12-31) that they wouldn't have shipped yet as of the snapshot land there, giving the recognition policy's "excludes unshipped orders" clause a real, if small, population to exclude.
+
+### Decision: refund_date is allowed to extend past AS_OF_DATE
+
+`docs/synthetic_data_spec.md`'s existing fixed-window discipline (`AS_OF_DATE = 2025-12-31`, no `date.today()` drift) governs `order_date`/`ship_date`, but clamping `refund_date` to the same bound would silently erase the later-period reversal this whole branch exists to create -- a return's refund is the tail of a process that can genuinely land after the snapshot that captured the order that started it. `refund_date` is instead bounded by `order_pool.REFUND_WINDOW_END` (`AS_OF_DATE` + 45 days = 2026-02-14), the maximum possible `RETURN_LAG_DAYS`. This is a deliberate, documented widening of the fixed-window discipline, not a reintroduction of `date.today()` -- both bounds are still fixed constants, verified directly: `min(refund_date) = 2025-01-22`, `max(refund_date) = 2026-01-31`, comfortably inside the declared bound. CRM refund tickets' `created_date` uses the same extended bound (see below).
+
+### Decision: revenue-recognition policy, written before finalizing the timestamp logic
+
+**`recognized_net_revenue` for period P = ERP line-item amounts (`unit_price * quantity + tax_amount`) whose `ship_date` falls in P, minus `refund_amount` for any order whose `refund_date` falls in P. Cancelled orders, and orders that have not yet shipped (`pending`), are excluded entirely.**
+
+Recognition is keyed on `ship_date`, not `order_date`: order-create-based recognition would shrink or eliminate the cutoff problem this dataset exists to create. This was written as this branch's actual contract *before* finalizing `order_pool.build_order()`'s lifecycle logic (per the build plan's own instruction), and the generated data was then verified to actually conform to it, not assumed to: of the 195 returned orders, **146 (74.9%) have `refund_date` falling in a different calendar month than `ship_date`** -- a substantial, real cross-period reversal population, not a handful of edge cases.
+
+### Decision: checkout promo -- a real arithmetic mechanism, not noise
+
+18% of orders (`PROMO_RATE`) have a checkout-time 10% promotional discount applied (`PROMO_DISCOUNT_RATE`). Of those, 30% (`PROMO_VALIDATION_FAILURE_RATE`) fail ERP's backend eligibility validation: the discount is honored at checkout (what `checkout_total` reflects) but ERP charges full price (what the stored line items -- and therefore `refund_amount`, if later returned -- actually reflect). The remaining 70% validate, and the discount is baked into the stored line items themselves (each line's `unit_price` scaled by `1 - PROMO_DISCOUNT_RATE` before tax is computed on it), so ERP's recognized amount and web's checkout total genuinely agree, down to per-line rounding.
+
+This was deliberately built as real, computable arithmetic rather than sampled noise, and verified as such: against the full 1,000-order pool, 165 orders (16.5%) have a promo applied, of which 45 (27.3% of promo'd orders) fail validation -- and **exactly 45 of 1,000 orders (4.5%) show a "real" (>\$1) divergence between `checkout_total` and the recognized total**, matching the validation-failure count precisely. A small residual of sub-\$0.02 differences exists among *validated* promo orders too (per-line quantization: each line's discounted `unit_price` is independently rounded to the cent, so the sum of quantized lines can differ from an aggregate-computed total by a cent or two) -- this is legitimate, expected rounding messiness, not a second mechanism, and is why "amounts agree" below uses a \$0.02 tolerance rather than exact equality.
+
+### Decision: web purchase events, and why the default event count grew ~10x
+
+`purchase` is a new, deliberately rare event type. Its volume is *emergent* from real ERP order coverage, not an independently dialed rate: `WEB_MATCH_RATE` (35% of real orders get a matching purchase event) against 1,000 default orders is ~350 matched events, plus a 12% orphan share brings the total to ~400. To keep that ~400 a "low single digits" share of the *combined* event total (not anywhere near an even split with `page_view`/`cart_addition`/`search_query`, per the build plan), `DEFAULT_EVENT_COUNT` was raised from 1,000 to 9,600 -- landing purchase at ~4.0% of the combined ~10,000, close to Contentsquare's cited 2.5-3% global ecommerce conversion rate for Q3 2025 (this generator approximates session-level conversion at event level, so an exact match isn't the goal). This ~10x default bump was a direct, necessary consequence of needing a realistic purchase-event share *and* realistic order coverage simultaneously at this dataset's existing order volume (1,000 orders) -- not a scale increase pursued for its own sake.
+
+`checkout_total`/`transaction_id`/`currency` are the new fields; the purchase timestamp uses the order's own `order_date` (checkout time), never `ship_date` -- the timing gap between checkout and ERP's ship-based recognition, not amount drift, is the actual cutoff signal. Identity capture on purchase events uses the same tiered exact/normalization/typo mechanism as the other three event types (extracted into a shared `roll_identity_capture()` helper rather than duplicated), at a distinctly higher capture rate (90%, vs. 55% for `cart_addition`) -- a completed checkout collects a contact email for the receipt almost every time. Purchase events are **not** subject to the pixel-retry-duplicate or late-arrival mechanics -- both remain scoped, unchanged, to the original three event types; extending them to purchase events wasn't asked for and would have added complexity with no corresponding need.
+
+### Decision: order-coverage gap rates (both directions)
+
+- **35% of real ERP orders have a matching purchase event** (`WEB_MATCH_RATE`); the other 65% don't. Deliberately the *majority* of orders, not a small tail: a real general-merchandise omnichannel retailer's phone/in-store/ad-blocked-or-declined-pixel share of order volume is realistically substantial, and modeling web coverage as near-universal would understate how much revenue a real analyst can never see in web analytics at the order-id grain.
+- **12% of purchase events are orphans** (`WEB_ORPHAN_SHARE_OF_PURCHASE_EVENTS`) -- a transaction_id with no real ERP order, representing a checkout that failed payment before the order ever persisted in ERP.
+
+Verified directly against the loaded default dataset: of 1,000 real ERP orders, **336 (33.6%) have a matching web purchase event, 664 (66.4%) don't**. Of 382 total purchase events, **336 (88.0%) resolve to a real ERP order, 46 (12.0%) are orphans** -- the orphan share lands almost exactly on its 12% target.
+
+### Verification: the full breakdown (Step 8 of the build plan)
+
+All numbers below are direct queries against the loaded `DEV_ANALYTICS.RAW` tables (or, where noted, the deterministic generator itself), not inferred from the generator's logic alone.
+
+**Order coverage** (both directions, real counts): 336 of 1,000 ERP orders have a matching web purchase; 664 don't. 336 of 382 web purchases have a matching ERP order; 46 don't.
+
+**Timing** (of the 336 matched order/purchase pairs): **28 (8.3%) have their checkout event and ERP recognition (`ship_date`) falling in different calendar months** -- the actual cutoff population this branch exists to create. A further 19 (5.7%) of matched pairs have no `ship_date` at all yet (the ERP order is still `pending` as of the snapshot, even though a web checkout already happened) -- a second, related timing gap worth noting: revenue that's already visible in web but not yet recognizable in ERP at all.
+
+**Amount** (of the 336 matched pairs, using a \$0.02 tolerance to separate genuine mechanism-driven divergence from per-line rounding dust -- see "Checkout promo" above): 313 (93.2%) agree, 23 (6.8%) diverge, of which 16 (4.8% of matched pairs) are a "real" (>\$1) divergence. Sampled directly, confirming these are promo-validation-failure cases, not noise:
+
+| transaction_id | checkout_total | recognized (ERP) total | order status |
+| -------------- | --------------- | ------------------------ | -------------- |
+| US-000160 | \$234.20 | \$260.21 | shipped |
+| EU-000245 | \$263.06 | \$292.29 | delivered |
+| US-000029 | \$373.17 | \$414.63 | delivered |
+| US-000183 | \$738.87 | \$820.97 | delivered |
+| US-000330 | \$1,139.00 | \$1,265.55 | shipped |
+
+Each recognized (ERP) total is checkout_total / 0.9, exactly the arithmetic a failed 10%-off promo produces (e.g. \$234.20 / 0.9 = \$260.22, matching \$260.21 to the cent after per-line tax rounding) -- confirming the mechanism, not sampled noise.
+
+**CRM** (224 refund tickets against the loaded data): a raw anti-join+status check finds 214 (95.5%) whose `order_reference` resolves to a real, *returned* order, 4 (1.8%) resolve to a real order that *isn't* returned, and 6 (2.7%) don't resolve at all. Replaying the generator with the reference-tail decision instrumented (its true intent isn't persisted in the CSV output, by design) gives the actual mechanism breakdown: **207 correct (92.4%), 11 wrong-but-valid (4.9%), 6 nonexistent (2.7%)** -- close to the 90/6/4 targets (small-sample variance at n=224). The gap between the two counts (11 true wrong-but-valid vs. only 4 detectable as such) is itself the point: **7 of the 11 wrong-but-valid tickets happen to reference a *different* order that is also `returned`**, making them indistinguishable from a correct reference by a simple anti-join+status check alone -- exactly the "confident wrong match, not an obvious miss" danger the build plan called for.
+
+Open/posted split: 64 (28.6%) open/pending, 160 (71.4%) resolved/closed -- close to the 35/65 target (a ~2-standard-deviation draw at this sample size, not a bug). Of the 160 posted tickets, 156 have an `order_reference` resolving to a real order; of those, 153 reference an order that's actually `returned` (and therefore has a comparable `refund_amount` -- the other 3 reference a real-but-non-returned order, another wrong-but-valid case surfacing here). Of the 153 comparable pairs: **136 (88.9%) match, 17 (11.1%) diverge** -- close to the 10% `REFUND_POSTED_MISMATCH_RATE` target, each by a flat \$5.99-\$12.99 shipping/tax-like adjustment (verified directly, e.g. `TCKT-000984` vs. `US-000418`: claimed \$2,103.23 against ERP's \$2,097.24, a \$5.99 difference).
+
+### Regression check: outcome-level and mechanism-level (ADR-008's discipline, applied again)
+
+Adding new RNG draws earlier in each generator's call sequence resequences everything after them for the same seed -- expected, and checked directly rather than assumed away, exactly as ADR-008 did for web identity.
+
+**ERP** (unaffected in kind, shifted in specifics): row counts 1,237 US / 1,236 EU order-item rows (previously 1,254/1,273 under ADR-002 -- a small shift from the same item-count/quantity RNG now being sourced from the order pool instead of `erp.py`'s own `random.Random(seed)`, not a change in the `rng.randint(1, 4)` item-count logic itself). EU currency split: 676 EUR / 560 GBP (previously 650/623) -- still both currencies present, still no unsupported-currency rows, `erp_convert_to_usd()`'s existing rate coverage is unaffected.
+
+**Web** (ADR-008's fix must survive untouched):
+
+| Metric | Before this branch | After |
+| ------- | ------- | ----- |
+| Duplicate rate (of canonical events) | 5.0% | 5.0% (480/9,600, exact) |
+| Late-arrival rate (of canonical events) | 2.0% | 2.0% (192/9,600 flagged; 206 total rows show the 2-4 day gap once ~14 duplicate copies of late events are counted too -- expected: duplicates are exact copies, including of late events, and ~9.6 such overlaps were expected by chance at this rate) |
+| Schema-drift cutoff split (all events, by `event_date`) | ~49%/51% | 5,107 (48.8%) pre / 5,355 (51.2%) post -- still a full-year, roughly-even split |
+| Identity capture rate, `page_view` | ~8% | 547/6,766 = 8.1% |
+| Identity capture rate, `search_query` | ~8% | 117/1,432 = 8.2% |
+| Identity capture rate, `cart_addition` | ~55% | 750/1,402 = 53.5% |
+
+All three original per-event-type capture rates land within normal sampling variance of their unchanged targets (`IDENTITY_CAPTURE_RATE_BY_EVENT_TYPE`'s existing values were not touched -- only a fourth key, `purchase`, was added to the same dict) -- confirming ADR-008's fix is intact. `purchase`'s own rate (345/382 = 90.3%) matches its new 90% target.
+
+**CRM** (unaffected in kind): ghost-account rate on general (non-refund) tickets, 36/900 (4.0%) -- exactly matching ADR-006's established rate, confirming the pre-existing mechanism (unmodified in this branch) still behaves identically. Country standardization unaffected: US variants still split across `US`/`USA`/`United States`/`u.s.a.` (36/37/33/28), five EU codes unchanged in kind (`DE` 58, `FR` 41, `NL` 35, `ES` 40, `IT` 42).
+
+### Consequences
+
+- The stated business problem ("Finance can't produce a trusted revenue number without a manual reconciliation exercise every close") is now buildable: ERP, web, and CRM each carry a genuine dollar figure, correlated via the shared order pool, with real, documented, non-uniform coverage gaps and at least one real (non-noise) amount-divergence mechanism -- not three sources that happen to agree perfectly, and not one source with the only numbers.
+- `erp.py` no longer takes `--seed`; `clickstream.py`/`crm.py` both gained `--orders-per-region`, which must match `erp.py`'s own value for correlation to hold. `docs/synthetic_data_spec.md` documents this requirement at every relevant call site.
+- Phase 5B's reconciliation fact (the full-outer-key-union detail table) and Phase 6's bridge mart were deliberately not built here -- this branch's job was correct, realistic, well-correlated raw source data for those to consume. No dbt staging model (`stg_erp__orders`/`stg_web__events`/`stg_crm__tickets`) was touched; exposing the new raw fields there is the next branch.
+- `dbt/seeds/seed_match_truth.csv` was regenerated (via `data_gen/build_match_truth.py`, itself unmodified) against the new `US_ORDERS.csv`/`EU_ORDERS.csv`/`CRM_CUSTOMERS.csv`/`CLICKSTREAM_IDENTITY_TRUTH.csv` -- its content shifted (the same RNG-resequencing effect as everywhere else in this branch) but its own logic and shape are unaffected.
